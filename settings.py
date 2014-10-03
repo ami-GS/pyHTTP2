@@ -1,0 +1,41 @@
+class FrameType():
+    DATA = "00"
+    HEADERS = "01"
+    PRIORITY = "02"
+    RST_STREAM = "03"
+    SETTINGS = "04"
+    PUSH_PROMISE = "05"
+    PING = "06"
+    GOAWAY = "07"
+    WINDOW_UPDATE = "08"
+    CONTINUATION = "09"
+
+class BaseFlag():
+    ACK = "01"
+    END_STREAM = "01"
+    END_HEADERS = "04"
+    PADDED = "08"
+    PRIORITY = "20"
+    
+class Settings():
+    HEADER_TABLE_SIZE = "01"
+    ENABLE_PUSH = "02"
+    MAX_CONCURRENT_STREAMS = "03"
+    INITIAL_WINDOW_SIZE = "04"
+    MAX_FRAME_SIZE = "05"
+    MAX_HEADER_LIST_SIZE = "06"
+
+class ErrorCode():
+    NO_ERROR = "00"
+    PROTOCOL_ERROR = "01"
+    INTERNAL_ERROR = "02"
+    FLOW_CONTROL_ERROR = "03"
+    SETTINGS_TIMEOUT = "04"
+    STREAM_CLOSED = "05"
+    FRAME_SIZE_ERROR = "06"
+    REFUSED_STREAM = "07"
+    CANCEL = "08"
+    COMPRESSION_ERROR = "09"
+    CONNECT_ERROR = "0a"
+    ENHANCE_YOUR_CALM = "0b"
+    INADEQUATE_SECURITY = "0c"
