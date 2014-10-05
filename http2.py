@@ -1,5 +1,6 @@
 from pyHPACK.HPACK import encode
 from settings import BaseFlag, FrameType, Settings, ErrorCode
+import socket
 
 Flag = BaseFlag
 Type = FrameType
@@ -14,7 +15,8 @@ def packHex(val, l):
     return "\x00"*(l-len(h)) + h
 
 class Connection():
-    def __init__(self, hostType = "client", table = None):
+    def __init__(self, host, port, hostType = "client", table = None):
+        self.sock = socket.create_connection((host, port), 5)
         self.table = table
         self.padLen = 0
         self.hostType = hostType
@@ -25,7 +27,11 @@ class Connection():
         self.lastStream_id = self.streams[-1] + 2
         self.streams.append(self.lastStream_id)
 
-    def makeFrame(self, type, flag, stream_id, err = Err.NO_ERROR, debug = None):
+    def send(self, frame):
+        self.sock.send(frame)
+
+    #def makeFrame(self, type, flag, stream_id, err = Err.NO_ERROR, debug = None):
+    def makeFrame(self, type, flag=Flag.NO, stream_id=0, **kwargs):
         # here should use **kwargs
         if type == Type.DATA:
             frame = self._data()
@@ -36,11 +42,11 @@ class Connection():
         elif type == Type.RST_STREAM:
             frame = self._rst_stream()
         elif type == Type.SETTINGS:
-            frame = self._settings(0)
+            frame = self._settings(flag, kwargs["ident"], kwargs["value"])
         elif type == Type.PING:
-            frame = self._ping("hello")
+            frame = self._ping(kwargs["ping"])
         elif type == Type.GOAWAY:
-            frame = self._goAway(err, debug)
+            frame = self._goAway(kwargs["err"], kwargs["debug"])
         elif type == Type.WINDOW_UPDATE:
             frame = self._window_update()
         elif type == Type.CONTINUATION:
@@ -77,7 +83,7 @@ class Connection():
     def _rst_stream(self):
         return ""
 
-    def _settings(self, value = 0, flag = Flag.NO, identifier = Set.NO):
+    def _settings(self, flag, identifier = Set.NO, value = 0):
         if flag == Flag.NO:
             return ""
         frame = packHex(identifier, 16) + packHex(value, 32)

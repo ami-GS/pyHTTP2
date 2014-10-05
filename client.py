@@ -1,5 +1,5 @@
 from pyHPACK.HPACK import encode
-from settings import BaseFlag, FrameType, CONNECTION_PREFACE
+from settings import BaseFlag, FrameType, ErrorCode, Settings, CONNECTION_PREFACE
 import sys
 from http2 import Connection
 from binascii import hexlify
@@ -9,25 +9,20 @@ import socket
 Flag = BaseFlag
 Type = FrameType
 table = Table()
-sock = None
+Err = ErrorCode
+Set = Settings
 
 def access(host, port):
-    global sock
-    con = Connection()
+    con = Connection(host, port)
     con.setTable(table)
 
-    if not sock:
-        sock = socket.create_connection((host, port), 5)
-        sock.send(CONNECTION_PREFACE)
-        print(hexlify(sock.recv(128)))
-    sock.send(con.makeFrame(Type.SETTINGS, Flag.NO, 0))
-    print(hexlify(sock.recv(128)))
+    con.send(CONNECTION_PREFACE)
+    con.send(con.makeFrame(Type.SETTINGS, ident=Set.NO, value=""))
     headers = [[":method", "GET"], [":scheme", "http"], [":authority", "127.0.0.1"], [":path", "/"]]
     con.setHeaders(headers)
-    h = con.makeFrame(Type.HEADERS, Flag.END_HEADERS, 1)
-    sock.send(con.makeFrame(Type.HEADERS, Flag.END_HEADERS, 1))
-    sock.send(con.makeFrame(Type.PING, Flag.NO, 0))
-    sock.send(con.makeFrame(Type.GOAWAY, Flag.NO, 1))
+    con.send(con.makeFrame(Type.HEADERS, Flag.END_HEADERS, 1))
+    con.send(con.makeFrame(Type.PING, ping="hello"))
+    con.send(con.makeFrame(Type.GOAWAY, err = Err.NO_ERROR, debug = None))
 
 if __name__ == "__main__":
     host = "127.0.0.1"
