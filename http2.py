@@ -27,25 +27,34 @@ class Connection():
 
     def makeFrame(self, type, flag, stream_id, err = Err.NO_ERROR, debug = None):
         # here should use **kwargs
-        if type == Type.HEADERS:
+        if type == Type.DATA:
+            frame = self._data()
+        elif type == Type.HEADERS:
             frame = self._headers(flag)
+        elif type == Type.PRIORITY:
+            frame = self._priority()
+        elif type == Type.RST_STREAM:
+            frame = self._rst_stream()
         elif type == Type.SETTINGS:
             frame = self._settings(0)
-        elif type == Type.GOAWAY:
-            frame = self._goAway(err, debug)
         elif type == Type.PING:
             frame = self._ping("hello")
+        elif type == Type.GOAWAY:
+            frame = self._goAway(err, debug)
+        elif type == Type.WINDOW_UPDATE:
+            frame = self._window_update()
+        elif type == Type.CONTINUATION:
+            frame = self._continuation()
+        else:
+            print("err")
         http2Frame = self.HTTP2Frame(len(frame), type, flag, stream_id)
         return http2Frame + frame
 
     def HTTP2Frame(self, length, type, flag, stream_id):
         return packHex(length, 24) + packHex(type, 8) + packHex(flag, 8) + packHex(stream_id, 32)
 
-    def _settings(self, value = 0, flag = Flag.NO, identifier = Set.NO):
-        if flag == Flag.NO:
-            return ""
-        frame = packHex(identifier, 16) + packHex(value, 32)
-        return frame
+    def _data(self):
+        return ""
 
     def _headers(self, flag):
         frame = ""
@@ -62,6 +71,24 @@ class Connection():
         frame += wire + padding
         return frame
 
+    def _priority(self):
+        return ""
+
+    def _rst_stream(self):
+        return ""
+
+    def _settings(self, value = 0, flag = Flag.NO, identifier = Set.NO):
+        if flag == Flag.NO:
+            return ""
+        frame = packHex(identifier, 16) + packHex(value, 32)
+        return frame
+
+    def _push_promise(self):
+        return ""
+
+    def _ping(self, value):
+        return packHex(value, 64)
+
     def _goAway(self, err, debug):
         # R also should be here
         frame = packHex(self.lastStream_id, 32)
@@ -69,12 +96,12 @@ class Connection():
         frame += debug if debug else ""
         return frame
 
+    def _window_update(self):
+        return ""
+
     def _continuation(self, wire):
         # TODO wire length and fin flag should be specified
         return wire
-
-    def _ping(self, value):
-        return packHex(value, 64)
 
     def setTable(self, table):
         self.table = table
