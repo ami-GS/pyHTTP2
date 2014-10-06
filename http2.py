@@ -1,5 +1,5 @@
 from pyHPACK.HPACK import encode
-from settings import BaseFlag, FrameType, Settings, ErrorCode
+from settings import *
 import socket
 
 Flag = BaseFlag
@@ -16,12 +16,44 @@ def packHex(val, l):
 
 class Connection():
     def __init__(self, host, port, hostType = "client", table = None):
-        self.sock = socket.create_connection((host, port), 5)
         self.table = table
+        self.host, self.port = host, port
         self.padLen = 0
         self.hostType = hostType
-        self.lastStream_id = 1 if hostType == "client" else 2 # here dangerous
         self.streams = [0, self.lastStream_id]
+        if hostType == "client":
+            self.sock = socket.create_connection((host, port), 5)
+            self.lastStream_id = 1
+        elif hostType == "server":
+            self.sock = socket.socket(socket.AP_INET, socket.SOCK_STREAM)
+            self.lastStream_id = 2
+            self.readyToPayload = False
+
+    def runServer(self):
+        self.sock.bind((host, port))
+        self.sock.listen(1) # number ?
+        self.conn, self.addr = s.accept()
+        while True:
+            data = conn.recv((MAX_FRAME_SIZE + FRAME_HEADER_SIZE) * 8) # here should use window length ?
+            print data
+            reponse = "?"
+            conn.send(response)
+
+    def _parseData(self, data):
+        def parseFrameHeader(data):
+            return data[:3], data[3:4], data[4:5], data[5:9]
+
+        while len(data):
+            if data.startswith(CONNECTION_PREFACE):
+                #send settings (this may be empty)
+                data = data.lstrip(CONNECTION_PREFACE)
+            else:
+                if self.readyToPayload:
+                    pass
+                else:
+                    parseFrameHeader(data)
+                    data = data[FRAME_HEADER_SIZE:]
+                    self.readyToPayload = True
 
     def addStream(self):
         self.lastStream_id = self.streams[-1] + 2
@@ -30,7 +62,6 @@ class Connection():
     def send(self, frame):
         self.sock.send(frame)
 
-    #def makeFrame(self, type, flag, stream_id, err = Err.NO_ERROR, debug = None):
     def makeFrame(self, type, flag=Flag.NO, stream_id=0, **kwargs):
         # here should use **kwargs
         if type == Type.DATA:
