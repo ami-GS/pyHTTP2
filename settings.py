@@ -1,3 +1,6 @@
+MAX_FRAME_SIZE = 2**14
+FRAME_HEADER_SIZE = 9
+
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 class FrameType():
