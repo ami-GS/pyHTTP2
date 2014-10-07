@@ -6,7 +6,7 @@ import sys
 talbe = Table()
 
 def runServer(host, port):
-    con = Connection(host, port, "server")
+    con = Server(host, port)
     con.setTable(table) 
     con.runServer()
 
