@@ -2,6 +2,8 @@ from settings import BaseFlag, FrameType, ErrorCode, Settings, CONNECTION_PREFAC
 import sys
 from http2 import Client
 from pyHPACK.tables import Table
+from binascii import hexlify
+import time
 
 Flag = BaseFlag
 Type = FrameType
@@ -20,6 +22,11 @@ def access(host, port):
     con.send(con.makeFrame(Type.HEADERS, Flag.END_HEADERS, 1))
     con.send(con.makeFrame(Type.PING, ping="hello"))
     con.send(con.makeFrame(Type.GOAWAY, err = Err.NO_ERROR, debug = None))
+    for i in range(2):
+        data = con.sock.recv(1024)
+        print(hexlify(data))
+        con.parseData(data)
+    time.sleep(1)
 
 if __name__ == "__main__":
     host = "127.0.0.1"
