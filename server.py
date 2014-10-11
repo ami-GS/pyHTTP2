@@ -1,9 +1,9 @@
-from http2 import Connection
+from http2 import Server
 from pyHPACK.tables import Table
 import socket
 import sys
 
-talbe = Table()
+table = Table()
 
 def runServer(host, port):
     con = Server(host, port)
@@ -14,7 +14,7 @@ def runServer(host, port):
 if __name__ == "__main__":
     args = sys.argv
     host = "127.0.0.1"
-    port = 80
+    port = 8080
 
     if len(args) == 3:
         host = args[1]

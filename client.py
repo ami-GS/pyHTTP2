@@ -1,10 +1,7 @@
-from pyHPACK.HPACK import encode
 from settings import BaseFlag, FrameType, ErrorCode, Settings, CONNECTION_PREFACE
 import sys
 from http2 import Client
-from binascii import hexlify
 from pyHPACK.tables import Table
-import socket
 
 Flag = BaseFlag
 Type = FrameType
