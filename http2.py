@@ -11,7 +11,6 @@ ERR = ErrorCode
 wireWrapper = lambda x: "".join([chr(int(x[i:i+2], 16)) for i in range(0, len(x), 2)])
 
 def packHex(val, l):
-    l /= 8
     h = val if type(val) == str else chr(val)
     return "\x00"*(l-len(h)) + h
 
@@ -34,26 +33,24 @@ class HTTP2Base(object):
 
     def parseData(self, data):
         def _parseFrameHeader(data):
-            return data[:3], data[3:4], data[4:5], data[5:9]
+            return int(hexlify(data[:3]), 16), data[3:4], \
+                data[4:5], int(hexlify(data[5:9]),16)
 
         def _data():
             pass
         def _headers(data, Flag):
             index = 0
-            if Type == FLAG.PADDED:
-                padLen = int(hexlify(data[:8]), 16)
+            if Flag == FLAG.PADDED:
+                padLen = int(hexlify(data[0]), 16)
                 padding = data[-padLen:]
-                index = 8
-                Wire = data[index:-padLen]
-            elif Type == FLAG.PRIORITY:
-                E = int(hexlify(data[0]), 16)
-                streamDepend = int(hexlify(data[1:32]), 16)
-                weight = int(hexlify(data[32:40]), 16)
-                index = 40
-                Wire = data[index:]
-            else:
-                Wire = data[:]
-            print(decode(Wire))
+                index = 1
+            elif Flag == FLAG.PRIORITY:
+                E = int(hexlify(data[:4]), 16) & 0x80
+                streamDepend = int(hexlify(data[:4]), 16) & 0x7fffffff
+                weight = int(hexlify(data[5]), 16)
+                index = 5
+            Wire = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
+            print(decode(hexlify(Wire), self.table))
 
         def _priority():
             pass
@@ -61,13 +58,13 @@ class HTTP2Base(object):
             pass
         def _settings(data, Length, Flag, Stream_id):
             if Stream_id != 0:
-                print("err", ERR.PROTOCOL_ERROR)
+                print("err:PROTOCOL_ERROR")
             if Flag == FLAG.ACK:
                 if Length != 0:
-                    print("err", ERR.FRAME_SIZE_ERROR)
-            else:
-                Identifier = int(hexlify(data[:16]), 16)
-                Value = int(hexlify(data[16:48]), 16)
+                    print("err:FRAME_SIZE_ERROR")
+            elif len(data):
+                Identifier = int(hexlify(data[:2]), 16)
+                Value = int(hexlify(data[2:6]), 16)
                 if Identifier == SET.HEADER_TABLE_SIZE:
                     self.table.setMaxHeaderTableSize(Value)
                 elif Identifier == SET.ENABLE_PUSH:
@@ -81,25 +78,26 @@ class HTTP2Base(object):
                     self.maxConcurrentStreams = Value
                 elif Identifier == SET.INITIAL_WINDOW_SIZE:
                     if Value > MAX_WINDOW_SIZE:
-                        print("err", ERR.FLOW_CONTROL_ERROR)
+                        print("err:FLOW_CONTROL_ERROR")
                     else:
                         self.initialWindowSize = Value
                 elif Identifier == SET.MAX_FRAME_SIZE:
                     if INITIAL_MAX_FRAME_SIZE <= Value  <= LIMIT_MAX_FRAME_SIZE:
                         self.maxFrameSize = Value
                     else:
-                        print("err", ERR.PROTOCOL_ERROR)
+                        print("err:PROTOCOL_ERROR")
                 elif Identifier == SET.MAX_HEADER_LIST_SIZE:
                     self.maxHeaderListSize = Value # ??
                 else:
                     pass # must ignore
                 # must send ack
+            print("Send settings ACK! (dummy)")
 
         def _ping(data, Length, Flag, Stream_id):
-            if Length != 64:
-                print("err", ERR.FRAME_SIZE_ERROR)
+            if Length != 8:
+                print("err:FRAME_SIZE_ERROR")
             if Stream_id != 0:
-                print("err", ERR.PROTOCOL_ERROR)
+                print("err:PROTOCOL_ERROR")
             if Flag == FLAG.ACK:
                 #flag == ack stands for ping response
                 pass
@@ -109,11 +107,12 @@ class HTTP2Base(object):
                 
         def _goAway(data, Length, Stream_id):
             if Stream_id != 0:
-                print("err", ERR.PROTOCOL_ERROR)
-            R = int(hexlify(data[0]), 16)
-            lastStreamID = int(hexlify(data[1:32]), 16)
-            errCode = int(hexlify(data[32:64]), 16)
-            additionalData =  int(hexlify(data[64:]), 16)
+                print("err:PROTOCOL_ERROR")
+            R = int(hexlify(data[0]), 16) & 0x80
+            lastStreamID = int(hexlify(data[:4]), 16) & 0x7fffffff
+            errCode = int(hexlify(data[4:8]), 16)
+            if Length > 8:
+                additionalData =  int(hexlify(data[64:]), 16)
             self.goAwayStream_id = lastStreamID
 
         def _window_update():
@@ -121,14 +120,14 @@ class HTTP2Base(object):
         def _continuation():
             pass
 
-        Length, Type, Flags, Stream_id = 0, 0, 0, 0 #here?
-        while len(data):
+        Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
+        while len(data) or Type == TYPE.SETTINGS:
             if data.startswith(CONNECTION_PREFACE):
                 #send settings (this may be empty)
                 data = data.lstrip(CONNECTION_PREFACE)
             else:
+                print(Length, hexlify(Type), hexlify(Flags), Stream_id, self.readyToPayload)
                 if self.readyToPayload:
-                    self.readyToPayload = False
                     if Type == TYPE.DATA:
                         _data(data[:Length])
                     elif Type == TYPE.HEADERS:
@@ -140,24 +139,28 @@ class HTTP2Base(object):
                     elif Type == TYPE.SETTINGS:
                         _settings(data, Length, Flags, Stream_id)
                     elif Type == TYPE.PING:
-                        _ping(data[:Length])
+                        _ping(data[:Length], Length, Flags, Stream_id)
                     elif Type == TYPE.GOAWAY:
-                        _goAway(data[:Length])
+                        _goAway(data[:Length], Length, Stream_id)
                     elif Type == TYPE.WINDOW_UPDATE:
                         _window_update(data[:Length])
                     elif Type == TYPE.CONTINUATION:
                         _continuation(data[:Length])
                     else:
-                        print("err")
-                    data = data[Length:] # not cool
+                        print("err:undefined frame type",Type)
+                    data = data[Length:]
+                    Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
+                    self.readyToPayload = False
                 else:
-                    self.readyToPayload = True
                     Length, Type, Flags, Stream_id = _parseFrameHeader(data)
+                    print(hexlify(data))
+                    print(Length, hexlify(Type), hexlify(Flags), Stream_id, "set")
                     data = data[FRAME_HEADER_SIZE:]
+                    self.readyToPayload = True
 
     def makeFrame(self, Type, flag=FLAG.NO, stream_id=0, **kwargs):
         def _HTTP2Frame(length, Type, flag, stream_id):
-            return packHex(length, 24) + packHex(Type, 8) + packHex(flag, 8) + packHex(stream_id, 32)
+            return packHex(length, 3) + packHex(Type, 1) + packHex(flag, 1) + packHex(stream_id, 4)
 
         def _data():
             return ""
@@ -166,12 +169,12 @@ class HTTP2Base(object):
             frame = ""
             padding = ""
             if flag == FLAG.PADDED:
-                frame += packHex(self.padLen, 8) # Pad Length
+                frame += packHex(self.padLen, 1) # Pad Length
                 padding = packHex(0, self.padLen)
             elif flag == FLAG.PRIORITY:
                 # 'E' also should be here
-                frame += packHex(0, 32) # Stream Dependency
-                frame += packHex(0, 8) # Weight
+                frame += packHex(0, 4) # Stream Dependency
+                frame += packHex(0, 1) # Weight
             wire = wireWrapper(encode(self.headers, True, True, True, self.table))
             # continuation frame should be used if length is ~~ ?
             frame += wire + padding
@@ -186,19 +189,19 @@ class HTTP2Base(object):
         def _settings(flag, identifier = SET.NO, value = 0):
             if flag == FLAG.NO:
                 return ""
-            frame = packHex(identifier, 16) + packHex(value, 32)
+            frame = packHex(identifier, 2) + packHex(value, 4)
             return frame
 
         def _push_promise():
             return ""
 
         def _ping(value):
-            return packHex(value, 64)
+            return packHex(value, 8)
 
         def _goAway(err, debug):
             # R also should be here
-            frame = packHex(self.lastStream_id, 32)
-            frame += packHex(err, 32)
+            frame = packHex(self.lastStream_id, 4)
+            frame += packHex(err, 4)
             frame += debug if debug else ""
             return frame
 
@@ -209,7 +212,6 @@ class HTTP2Base(object):
             # TODO wire length and fin flag should be specified
             return wire
 
-        # here should use **kwargs
         if Type == TYPE.DATA:
             frame = _data()
         elif Type == TYPE.HEADERS:
@@ -229,7 +231,7 @@ class HTTP2Base(object):
         elif Type == TYPE.CONTINUATION:
             frame = _continuation()
         else:
-            print("err")
+            print("err:undefined frame type", Type)
         http2Frame = _HTTP2Frame(len(frame), Type, flag, stream_id)
         return http2Frame + frame
 
@@ -246,20 +248,23 @@ class HTTP2Base(object):
 class Server(HTTP2Base):
     def __init__(self, host, port, table = None):    
         super(Server, self).__init__(host, port, table)
-        self.sock = socket.socket(socket.AP_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastStream_id = 2
         self.streams.append(self.lastStream_id)
         self.readyToPayload = False
 
     def runServer(self):
-        self.sock.bind((host, port))
+        self.sock.bind((self.host, self.port))
         self.sock.listen(1) # number ?
-        self.conn, self.addr = s.accept()
+        import time
         while True:
-            data = conn.recv((MAX_FRAME_SIZE + FRAME_HEADER_SIZE) * 8) # here should use window length ?
-            print data
-            reponse = "?"
-            conn.send(response)
+            print("Connection waiting...")
+            conn, addr = self.sock.accept()
+            data = "dummy"
+            while len(data):
+                data = conn.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
+                self.parseData(data)
+                #conn.send(response)
 
 class Client(HTTP2Base):
     def __init__(self, host, port, table = None):
