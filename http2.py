@@ -20,24 +20,38 @@ class HTTP2Base(object):
         self.host, self.port = host, port
         self.padLen = 0
         self.lastStream_id = None
-        self.streams = [0]
+        self.streams = {0:"open"} #streams should be shared with both peer?
         self.enablePush = 1
         self.maxConcurrentStreams = -1
         self.initialWindowSize = (1 << 16) -1
         self.maxFrameSize = 1 << 14 # octet
         self.maxHeaderListSize = -1
         self.goAwayStream_id = -1
+        self.readyToPayload = False
+        self.con = None
 
     def send(self, frame):
         self.sock.send(frame)
+
+    def resp(self, frame):
+        self.con.send(frame)
 
     def parseData(self, data):
         def _parseFrameHeader(data):
             return int(hexlify(data[:3]), 16), data[3:4], \
                 data[4:5], int(hexlify(data[5:9]),16)
 
-        def _data():
-            pass
+        def _data(data, Flag, stream_id):
+            if stream_id == 0:
+                print("err:PROTOCOL_ERROR")
+            if self.streams[stream_id] == "closed":
+                print("err:STREAM_CLOSED")
+            padLen = 0
+            if Flag == FLAG.PADDED:
+                padLen = int(hexlify(data[0]), 16)
+            content = data[1: len(data) if Flag != FLAG.PADDED else -padLen]
+            print("DATA:%s" % (content))
+
         def _headers(data, Flag):
             index = 0
             if Flag == FLAG.PADDED:
@@ -50,6 +64,10 @@ class HTTP2Base(object):
                 weight = int(hexlify(data[5]), 16)
                 index = 5
             Wire = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
+
+            #tempral test
+            self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
+
             print(decode(hexlify(Wire), self.table))
 
         def _priority():
@@ -91,19 +109,19 @@ class HTTP2Base(object):
                 else:
                     pass # must ignore
                 # must send ack
-            print("Send settings ACK! (dummy)")
+                self.resp(self.makeFrame(TYPE.SETTINGS, FLAG.ACK, 0, ident=SET.NO, value = ""))
 
         def _ping(data, Length, Flag, Stream_id):
             if Length != 8:
                 print("err:FRAME_SIZE_ERROR")
             if Stream_id != 0:
                 print("err:PROTOCOL_ERROR")
-            if Flag == FLAG.ACK:
-                #flag == ack stands for ping response
-                pass
-            else:
+            if Flag != FLAG.ACK:
                 # must send ping with flag == ack
-                pass
+                print("ping response !")
+                self.resp(self.makeFrame(TYPE.PING, FLAG.ACK, 0, ping = data[:8]))
+            else:
+                print("PING:%s" % (data[:8]))
                 
         def _goAway(data, Length, Stream_id):
             if Stream_id != 0:
@@ -129,7 +147,7 @@ class HTTP2Base(object):
                 print(Length, hexlify(Type), hexlify(Flags), Stream_id, self.readyToPayload)
                 if self.readyToPayload:
                     if Type == TYPE.DATA:
-                        _data(data[:Length])
+                        _data(data[:Length], Flags, Stream_id)
                     elif Type == TYPE.HEADERS:
                         _headers(data[:Length], Flags)
                     elif Type == TYPE.PRIORITY:
@@ -162,8 +180,14 @@ class HTTP2Base(object):
         def _HTTP2Frame(length, Type, flag, stream_id):
             return packHex(length, 3) + packHex(Type, 1) + packHex(flag, 1) + packHex(stream_id, 4)
 
-        def _data():
-            return ""
+        def _data(flag, stream_id, data, padLen = 0):
+            frame = ""
+            padding = ""
+            if flag == FLAG.PADDED:
+                frame += packHex(padLen, 1)
+                padding += packHex(0, padLen)
+            frame += data #TODO data length should be configured
+            return frame + padding
 
         def _headers(flag):
             frame = ""
@@ -187,7 +211,7 @@ class HTTP2Base(object):
             return ""
 
         def _settings(flag, identifier = SET.NO, value = 0):
-            if flag == FLAG.NO:
+            if flag == FLAG.NO or flag == FLAG.ACK:
                 return ""
             frame = packHex(identifier, 2) + packHex(value, 4)
             return frame
@@ -213,7 +237,7 @@ class HTTP2Base(object):
             return wire
 
         if Type == TYPE.DATA:
-            frame = _data()
+            frame = _data(flag, 1, kwargs["data"], kwargs["padLen"]) # TODO  manage stream_id
         elif Type == TYPE.HEADERS:
             frame = _headers(flag)
         elif Type == TYPE.PRIORITY:
@@ -237,7 +261,7 @@ class HTTP2Base(object):
 
     def addStream(self):
         self.lastStream_id += 2
-        self.streams.append(self.lastStream_id)
+        self.streams[self.lastStream_id] = "open" #closed?
 
     def setTable(self, table):
         self.table = table
@@ -250,8 +274,7 @@ class Server(HTTP2Base):
         super(Server, self).__init__(host, port, table)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastStream_id = 2
-        self.streams.append(self.lastStream_id)
-        self.readyToPayload = False
+        self.streams[self.lastStream_id] = "open"
 
     def runServer(self):
         self.sock.bind((self.host, self.port))
@@ -259,16 +282,15 @@ class Server(HTTP2Base):
         import time
         while True:
             print("Connection waiting...")
-            conn, addr = self.sock.accept()
+            self.con, addr = self.sock.accept()
             data = "dummy"
             while len(data):
-                data = conn.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
+                data = self.con.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
                 self.parseData(data)
-                #conn.send(response)
 
 class Client(HTTP2Base):
     def __init__(self, host, port, table = None):
         super(Client, self).__init__(host, port, table)
         self.lastStream_id = 1
-        self.streams.append(self.lastStream_id)
+        self.streams[self.lastStream_id] = "open"
         self.sock = socket.create_connection((host, port), 5)
