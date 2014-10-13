@@ -21,11 +21,11 @@ class HTTP2Base(object):
         self.host, self.port = host, port
         self.lastStream_id = None
         self.streams = {0:"open"} #streams should be shared with both peer?
-        self.enablePush = 1
-        self.maxConcurrentStreams = -1
-        self.initialWindowSize = (1 << 16) -1
-        self.maxFrameSize = 1 << 16 # octet
-        self.maxHeaderListSize = -1
+        self.enablePush = SET.INIT_VALUE[2]
+        self.maxConcurrentStreams = SET.INIT_VALUE[3]
+        self.initialWindowSize = SET.INIT_VALUE[4]
+        self.maxFrameSize = SET.INIT_VALUE[5] # octet
+        self.maxHeaderListSize = SET.INIT_VALUE[6]
         self.goAwayStream_id = -1
         self.readyToPayload = False
         self.con = None

@@ -33,6 +33,7 @@ class Settings():
     INITIAL_WINDOW_SIZE = "\x04"
     MAX_FRAME_SIZE = "\x05"
     MAX_HEADER_LIST_SIZE = "\x06"
+    INIT_VALUE = [None, 4096, 1, -1, 65535, 65536, -1]
 
 class ErrorCode():
     NO_ERROR = "\x00"
