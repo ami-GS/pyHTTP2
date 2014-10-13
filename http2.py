@@ -8,8 +8,6 @@ TYPE = FrameType
 SET = Settings
 ERR = ErrorCode
 
-wireWrapper = lambda x: "".join([chr(int(x[i:i+2], 16)) for i in range(0, len(x), 2)])
-
 def packHex(val, l):
     h = val if type(val) == str else chr(val)
     return "\x00"*(l-len(h)) + h
@@ -63,8 +61,8 @@ class HTTP2Base(object):
                 weight = int(hexlify(data[5]), 16)
                 index = 5
             Wire = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-
-            #tempral test
+            # TODO end_headers flag should be managed with some status
+            # tempral test
             self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
 
             print(decode(hexlify(Wire), self.table))
@@ -128,14 +126,14 @@ class HTTP2Base(object):
             if Flag == FLAG.END_HEADERS:
                 pass #if not, continuation frame should be come
             index = 0
-            elif Flag == FLAG.PADDED:
+            if Flag == FLAG.PADDED:
                 padLen = int(hexlify(data[0]), 16)
                 padding = data[-padLen:]
                 index = 1
             R = int(hexlify(data[index]), 16) & 0x80
             promisedStream_id = int(hexlify(data[index:index + 4])) & 0x7fffffff
             wire = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
-            headers = decode(hexlify(Wire)
+            headers = decode(hexlify(Wire))
 
         def _ping(data, Length, Flag, Stream_id):
             if Length != 8:
@@ -159,10 +157,23 @@ class HTTP2Base(object):
                 additionalData =  int(hexlify(data[64:]), 16)
             self.goAwayStream_id = lastStreamID
 
-        def _window_update():
-            pass
-        def _continuation():
-            pass
+        def _window_update(data, Length, Stream_id):
+            # not yet complete
+            R = int(hexlify(data[0]), 16) & 0x80
+            windowSizeIncrement = int(hexlify(data[:4]), 16) & 0x7fffffff
+            if windowSizeIncrement == 0:
+                print("err:PROTOCOL_ERROR")
+            elif windowSizeIncrement >  (1 << 31) - 1:
+                print("err:FLOW_CONNECTION_ERROR")
+                if Stream_id == 0:
+                    self.resp(self.makeFrame(TYPE.GOAWAY, err=ERR.FLOW_CONNECTION_ERROR))
+                else:
+                    self.resp(self.makeFrame(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR))
+
+        def _continuation(data, Length ,Stream_id):
+            if Stream_id == 0:
+                print("err:PROTOCOL_ERROR")
+
 
         Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
         while len(data) or Type == TYPE.SETTINGS:
@@ -231,6 +242,7 @@ class HTTP2Base(object):
                 frame += packHex(kwargs["weight"], 1) # Weight
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
             # continuation frame should be used if length is ~~ ?
+            # should continuation frame be used from app side??
             frame += wire + padding
             return frame
 
@@ -277,11 +289,14 @@ class HTTP2Base(object):
             frame += kwargs["debug"] if kwargs["debug"] else ""
             return frame
 
-        def _window_update():
-            return ""
+        def _window_update(**kwargs):
+            windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
+            if kwargs.has_key("R") and kwargs["R"]:
+                windowSizeIncrement[0] = unhexlify(hex(int(hexlify(windowSizeIncrement[0]), 16) | 0x80)[2:])
+            return windowSizeIncrement
 
         def _continuation(wire):
-            # TODO wire length and fin flag should be specified
+            # enough
             return wire
 
         if Type == TYPE.DATA:
