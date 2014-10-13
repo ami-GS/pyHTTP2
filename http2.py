@@ -12,6 +12,9 @@ def packHex(val, l):
     h = val if type(val) == str else chr(val)
     return "\x00"*(l-len(h)) + h
 
+def upackHex(val):
+    return int(hexlify(val), 16)
+
 class HTTP2Base(object):
     def __init__(self, host, port, table = None):
         self.table = table
@@ -35,8 +38,8 @@ class HTTP2Base(object):
 
     def parseData(self, data):
         def _parseFrameHeader(data):
-            return int(hexlify(data[:3]), 16), data[3:4], \
-                data[4:5], int(hexlify(data[5:9]),16)
+            return upackHex(data[:3]), data[3:4], \
+                data[4:5], upackHex(data[5:9])
 
         def _data(data, Flag, stream_id):
             if stream_id == 0:
@@ -45,20 +48,20 @@ class HTTP2Base(object):
                 print("err:STREAM_CLOSED")
             padLen = 0
             if Flag == FLAG.PADDED:
-                padLen = int(hexlify(data[0]), 16)
+                padLen = upackHex(data[0])
             content = data[1: len(data) if Flag != FLAG.PADDED else -padLen]
             print("DATA:%s" % (content))
 
         def _headers(data, Flag):
             index = 0
             if Flag == FLAG.PADDED:
-                padLen = int(hexlify(data[0]), 16)
+                padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
             elif Flag == FLAG.PRIORITY:
-                E = int(hexlify(data[:4]), 16) & 0x80
-                streamDepend = int(hexlify(data[:4]), 16) & 0x7fffffff
-                weight = int(hexlify(data[5]), 16)
+                E = upackHex(data[:4]) & 0x80
+                streamDepend = upackHex(data[:4]) & 0x7fffffff
+                weight = upackHex(data[5])
                 index = 5
             Wire = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
             # TODO end_headers flag should be managed with some status
@@ -70,9 +73,9 @@ class HTTP2Base(object):
         def _priority(data, Length, Stream_id):
             if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
-            E = int(hexlify(data[0]), 16) & 0x80
-            streamDependency = int(hexlify(data[0:4]), 16) & 0x7fffffff
-            weight = int(hexlify(data[5]), 16)
+            E = upackHex(data[0]) & 0x80
+            streamDependency = upackHex(data[0:4]) & 0x7fffffff
+            weight = upackHex(data[5])
 
         def _rst_stream(data, Length, Stream_id):
             if Stream_id == 0 or self.streams[Stream_id] == "idle":
@@ -87,8 +90,8 @@ class HTTP2Base(object):
                 if Length != 0:
                     print("err:FRAME_SIZE_ERROR")
             elif len(data):
-                Identifier = int(hexlify(data[:2]), 16)
-                Value = int(hexlify(data[2:6]), 16)
+                Identifier = upackHex(data[:2])
+                Value = upackHex(data[2:6])
                 if Identifier == SET.HEADER_TABLE_SIZE:
                     self.table.setMaxHeaderTableSize(Value)
                 elif Identifier == SET.ENABLE_PUSH:
@@ -127,11 +130,11 @@ class HTTP2Base(object):
                 pass #if not, continuation frame should be come
             index = 0
             if Flag == FLAG.PADDED:
-                padLen = int(hexlify(data[0]), 16)
+                padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
-            R = int(hexlify(data[index]), 16) & 0x80
-            promisedStream_id = int(hexlify(data[index:index + 4])) & 0x7fffffff
+            R = upackHex(data[index]) & 0x80
+            promisedStream_id = upackHex(data[index:index + 4]) & 0x7fffffff
             wire = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
             headers = decode(hexlify(Wire))
 
@@ -150,17 +153,17 @@ class HTTP2Base(object):
         def _goAway(data, Length, Stream_id):
             if Stream_id != 0:
                 print("err:PROTOCOL_ERROR")
-            R = int(hexlify(data[0]), 16) & 0x80
-            lastStreamID = int(hexlify(data[:4]), 16) & 0x7fffffff
-            errCode = int(hexlify(data[4:8]), 16)
+            R = upackHex(data[0]) & 0x80
+            lastStreamID = upackHex(data[:4]) & 0x7fffffff
+            errCode = upackHex(data[4:8])
             if Length > 8:
-                additionalData =  int(hexlify(data[64:]), 16)
+                additionalData =  upackHex(data[64:])
             self.goAwayStream_id = lastStreamID
 
         def _window_update(data, Length, Stream_id):
             # not yet complete
-            R = int(hexlify(data[0]), 16) & 0x80
-            windowSizeIncrement = int(hexlify(data[:4]), 16) & 0x7fffffff
+            R = upackHex(data[0]) & 0x80
+            windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
             if windowSizeIncrement == 0:
                 print("err:PROTOCOL_ERROR")
             elif windowSizeIncrement >  (1 << 31) - 1:
@@ -237,7 +240,7 @@ class HTTP2Base(object):
             elif flag == FLAG.PRIORITY:
                 streamDependency = packHex(kwargs["depend"], 4)
                 if kwargs.has_key("E") and kwargs["E"]:
-                    streamDependency[0] = unhexlify(hex(int(hexlify(streamDependency[0]), 16) | 0x80)[2:])
+                    streamDependency[0] = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:])
                 frame += streamDependency
                 frame += packHex(kwargs["weight"], 1) # Weight
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
@@ -250,7 +253,7 @@ class HTTP2Base(object):
             streamDependency = packHex(kwargs["depend"], 4)
             if kwargs.has_key("E") and kwargs["E"]:
                 # TODO: must fix, not cool
-                streamDependency[0] = unhexlify(hex(int(hexlify(streamDependency[0]), 16) | 0x80)[2:])
+                streamDependency[0] = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:])
             weight = packHex(kwargs["weight"], 1)
             return streamDependency + weight
 
@@ -275,7 +278,7 @@ class HTTP2Base(object):
             self.addStream()
             promisedStream_id += packHex(self.lastStream_id, 4)
             if kwargs.has_key("R") and kwargs["R"]:
-                promisedStream_id[0] = unhexlify(hex(int(hexlify(promisedStream_id[0]), 16) | 0x80)[2:])
+                promisedStream_id[0] = unhexlify(hex(upackHex(promisedStream_id[0]) | 0x80)[2:])
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
             return frame + promisedStream_id + wire + padding
 
@@ -292,7 +295,7 @@ class HTTP2Base(object):
         def _window_update(**kwargs):
             windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
             if kwargs.has_key("R") and kwargs["R"]:
-                windowSizeIncrement[0] = unhexlify(hex(int(hexlify(windowSizeIncrement[0]), 16) | 0x80)[2:])
+                windowSizeIncrement[0] = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:])
             return windowSizeIncrement
 
         def _continuation(wire):
