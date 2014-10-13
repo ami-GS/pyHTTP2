@@ -24,7 +24,7 @@ class HTTP2Base(object):
         self.enablePush = 1
         self.maxConcurrentStreams = -1
         self.initialWindowSize = (1 << 16) -1
-        self.maxFrameSize = 1 << 14 # octet
+        self.maxFrameSize = 1 << 16 # octet
         self.maxHeaderListSize = -1
         self.goAwayStream_id = -1
         self.readyToPayload = False
@@ -41,10 +41,10 @@ class HTTP2Base(object):
             return upackHex(data[:3]), data[3:4], \
                 data[4:5], upackHex(data[5:9])
 
-        def _data(data, Flag, stream_id):
-            if stream_id == 0:
+        def _data(data, Flag, Stream_id):
+            if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
-            if self.streams[stream_id] == "closed":
+            if self.streams[Stream_id] == "closed":
                 print("err:STREAM_CLOSED")
             padLen = 0
             if Flag == FLAG.PADDED:
@@ -70,24 +70,24 @@ class HTTP2Base(object):
 
             print(decode(hexlify(Wire), self.table))
 
-        def _priority(data, Length, Stream_id):
+        def _priority(data, Stream_id):
             if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
             E = upackHex(data[0]) & 0x80
-            streamDependency = upackHex(data[0:4]) & 0x7fffffff
+            streamDependency = upackHex(data[:4]) & 0x7fffffff
             weight = upackHex(data[5])
 
-        def _rst_stream(data, Length, Stream_id):
+        def _rst_stream(data, Stream_id):
             if Stream_id == 0 or self.streams[Stream_id] == "idle":
                 print("err:PROTOCOL_ERROR")
             else:
                 self.streams[Stream_id] = "closed"
 
-        def _settings(data, Length, Flag, Stream_id):
+        def _settings(data, Flag, Stream_id):
             if Stream_id != 0:
                 print("err:PROTOCOL_ERROR")
             if Flag == FLAG.ACK:
-                if Length != 0:
+                if len(data) != 0:
                     print("err:FRAME_SIZE_ERROR")
             elif len(data):
                 Identifier = upackHex(data[:2])
@@ -120,7 +120,7 @@ class HTTP2Base(object):
                 # must send ack
                 self.resp(self.makeFrame(TYPE.SETTINGS, FLAG.ACK, 0, ident=SET.NO, value = ""))
 
-        def _push_promise(data, Length, Flag, Stream_id):
+        def _push_promise(data, Flag, Stream_id):
             if Stream_id == 0 or self.enablePush == 0:
                 print("err:PROTOCOL_ERROR")
             if self.streams[Stream_id] != "open" and self.streams[Stream_id] != "half closed (remote)":
@@ -138,8 +138,8 @@ class HTTP2Base(object):
             wire = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
             headers = decode(hexlify(Wire))
 
-        def _ping(data, Length, Flag, Stream_id):
-            if Length != 8:
+        def _ping(data, Flag, Stream_id):
+            if len(data) != 8:
                 print("err:FRAME_SIZE_ERROR")
             if Stream_id != 0:
                 print("err:PROTOCOL_ERROR")
@@ -150,17 +150,17 @@ class HTTP2Base(object):
             else:
                 print("PING:%s" % (data[:8]))
                 
-        def _goAway(data, Length, Stream_id):
+        def _goAway(data, Stream_id):
             if Stream_id != 0:
                 print("err:PROTOCOL_ERROR")
             R = upackHex(data[0]) & 0x80
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
-            if Length > 8:
-                additionalData =  upackHex(data[64:])
+            if len(data) > 8:
+                additionalData =  upackHex(data[8:])
             self.goAwayStream_id = lastStreamID
 
-        def _window_update(data, Length, Stream_id):
+        def _window_update(data, Stream_id):
             # not yet complete
             R = upackHex(data[0]) & 0x80
             windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
@@ -173,7 +173,7 @@ class HTTP2Base(object):
                 else:
                     self.resp(self.makeFrame(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR))
 
-        def _continuation(data, Length ,Stream_id):
+        def _continuation(data ,Stream_id):
             if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
 
@@ -195,17 +195,17 @@ class HTTP2Base(object):
                     elif Type == TYPE.RST_STREAM:
                         _rst_stream(data[:Length])
                     elif Type == TYPE.SETTINGS:
-                        _settings(data, Length, Flags, Stream_id)
+                        _settings(data[:Length], Flags, Stream_id)
                     elif Type == TYPE.PUSH_PROMISE:
-                        _push_promise(data,)
+                        _push_promise(data[:Length])
                     elif Type == TYPE.PING:
-                        _ping(data[:Length], Length, Flags, Stream_id)
+                        _ping(data[:Length], Flags, Stream_id)
                     elif Type == TYPE.GOAWAY:
-                        _goAway(data[:Length], Length, Stream_id)
+                        _goAway(data[:Length], Stream_id)
                     elif Type == TYPE.WINDOW_UPDATE:
-                        _window_update(data[:Length])
+                        _window_update(data[:Length], Stream_id)
                     elif Type == TYPE.CONTINUATION:
-                        _continuation(data[:Length])
+                        _continuation(data[:Length], Stream_id)
                     else:
                         print("err:undefined frame type",Type)
                     data = data[Length:]
