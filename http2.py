@@ -20,7 +20,8 @@ class HTTP2Base(object):
         self.table = table
         self.host, self.port = host, port
         self.lastStream_id = None
-        self.streams = {0:"open"} #streams should be shared with both peer?
+        # TODO: should previous frame be implemented for header next to it which has END_HEADER flag
+        self.streams = {0:{"state":"open", "header":[True, ""]}} # stream_id, status, header flagment
         self.enablePush = SET.INIT_VALUE[2]
         self.maxConcurrentStreams = SET.INIT_VALUE[3]
         self.initialWindowSize = SET.INIT_VALUE[4]
@@ -44,7 +45,7 @@ class HTTP2Base(object):
         def _data(data, Flag, Stream_id):
             if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
-            if self.streams[Stream_id] == "closed":
+            if self.streams[Stream_id]["state"] == "closed":
                 print("err:STREAM_CLOSED")
             padLen = 0
             if Flag == FLAG.PADDED:
@@ -52,7 +53,10 @@ class HTTP2Base(object):
             content = data[1: len(data) if Flag != FLAG.PADDED else -padLen]
             print("DATA:%s" % (content))
 
-        def _headers(data, Flag):
+        def _headers(data, Flag, Stream_id):
+            if Stream_id == 0:
+                print("err:PROTOCOL_ERROR")
+
             index = 0
             if Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
@@ -63,12 +67,16 @@ class HTTP2Base(object):
                 streamDepend = upackHex(data[:4]) & 0x7fffffff
                 weight = upackHex(data[5])
                 index = 5
-            Wire = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-            # TODO end_headers flag should be managed with some status
-            # tempral test
-            self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
 
-            print(decode(hexlify(Wire), self.table))
+            # Too long, and is there a case of several flags are set?
+            self.streams[Stream_id]["header"][1] += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
+            if Flag == FLAG.END_HEADERS:
+                # tempral test
+                print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
+                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
+                self.streams[Stream_id]["header"] = [True, ""] # init header in a stream
+            else:
+                self.streams[Stream_id]["header"][0] = False
 
         def _priority(data, Stream_id):
             if Stream_id == 0:
@@ -78,10 +86,10 @@ class HTTP2Base(object):
             weight = upackHex(data[5])
 
         def _rst_stream(data, Stream_id):
-            if Stream_id == 0 or self.streams[Stream_id] == "idle":
+            if Stream_id == 0 or self.streams[Stream_id]["state"] == "idle":
                 print("err:PROTOCOL_ERROR")
             else:
-                self.streams[Stream_id] = "closed"
+                self.streams[Stream_id]["state"] = "closed"
 
         def _settings(data, Flag, Stream_id):
             if Stream_id != 0:
@@ -123,7 +131,7 @@ class HTTP2Base(object):
         def _push_promise(data, Flag, Stream_id):
             if Stream_id == 0 or self.enablePush == 0:
                 print("err:PROTOCOL_ERROR")
-            if self.streams[Stream_id] != "open" and self.streams[Stream_id] != "half closed (remote)":
+            if self.streams[Stream_id]["state"] != "open" and self.streams[Stream_id]["state"] != "half closed (remote)":
                 print("err:PROTOCOL_ERROR")
 
             if Flag == FLAG.END_HEADERS:
@@ -173,10 +181,12 @@ class HTTP2Base(object):
                 else:
                     self.resp(self.makeFrame(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR))
 
-        def _continuation(data ,Stream_id):
+        def _continuation(data, Flag, Stream_id):
             if Stream_id == 0:
                 print("err:PROTOCOL_ERROR")
-
+            self.streams[Stream_id]["header"] += data
+            if Flag == FLAG.END_HEADERS:
+                self.streams[Stream_id]["header"] = [True, ""]
 
         Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
         while len(data) or Type == TYPE.SETTINGS:
@@ -189,7 +199,7 @@ class HTTP2Base(object):
                     if Type == TYPE.DATA:
                         _data(data[:Length], Flags, Stream_id)
                     elif Type == TYPE.HEADERS:
-                        _headers(data[:Length], Flags)
+                        _headers(data[:Length], Flags, Stream_id)
                     elif Type == TYPE.PRIORITY:
                         _priority(data[:Length])
                     elif Type == TYPE.RST_STREAM:
@@ -213,6 +223,8 @@ class HTTP2Base(object):
                     self.readyToPayload = False
                 else:
                     Length, Type, Flags, Stream_id = _parseFrameHeader(data)
+                    if not self.streams.has_key(Stream_id):
+                        self.addStream(Stream_id)
                     print(hexlify(data))
                     print(Length, hexlify(Type), hexlify(Flags), Stream_id, "set")
                     data = data[FRAME_HEADER_SIZE:]
@@ -327,9 +339,12 @@ class HTTP2Base(object):
         http2Frame = _HTTP2Frame(len(frame), Type, flag, stream_id)
         return http2Frame + frame
 
-    def addStream(self):
-        self.lastStream_id += 2
-        self.streams[self.lastStream_id] = "open" #closed?
+    def addStream(self, Stream_id = 0):
+        if Stream_id:
+            self.streams[Stream_id] = {"state":"open", "header":[True, ""]}
+        else:
+            self.lastStream_id += 2
+            self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]} #closed?
 
     def setTable(self, table):
         self.table = table
@@ -342,7 +357,7 @@ class Server(HTTP2Base):
         super(Server, self).__init__(host, port, table)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastStream_id = 2
-        self.streams[self.lastStream_id] = "open"
+        self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]}
 
     def runServer(self):
         self.sock.bind((self.host, self.port))
@@ -360,5 +375,5 @@ class Client(HTTP2Base):
     def __init__(self, host, port, table = None):
         super(Client, self).__init__(host, port, table)
         self.lastStream_id = 1
-        self.streams[self.lastStream_id] = "open"
+        self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]}
         self.sock = socket.create_connection((host, port), 5)
