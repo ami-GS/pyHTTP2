@@ -1,4 +1,12 @@
 pyHTTP2
 =======
 
-Python implementation of HTTP2 [draft 09](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-09 "draft 09")
+Python implementation of HTTP2 [draft 14](http://tools.ietf.org/html/draft-ietf-httpbis-http2-14 "draft 14")
+
+## Simole usage
+```
+python server.py 127.0.0.1 8080
+```
+```
+python client.py 127.0.0.1 8080
+```
