@@ -21,7 +21,8 @@ class HTTP2Base(object):
         self.host, self.port = host, port
         self.lastStream_id = None
         # TODO: should previous frame be implemented for header next to it which has END_HEADER flag
-        self.streams = {0:{"state":"open", "header":[True, ""]}} # stream_id, status, header flagment
+        #self.streams = {0:{"state":"open", "header":[True, ""]}} # stream_id, status, header flagment
+        self.streams = {0:INITIAL_STREAM_STATE}
         self.enablePush = SET.INIT_VALUE[2]
         self.maxConcurrentStreams = SET.INIT_VALUE[3]
         self.initialWindowSize = SET.INIT_VALUE[4]
@@ -346,10 +347,10 @@ class HTTP2Base(object):
 
     def addStream(self, Stream_id = 0):
         if Stream_id:
-            self.streams[Stream_id] = {"state":"open", "header":[True, ""]}
+            self.streams[Stream_id] = INITIAL_STREAM_STATE
         else:
             self.lastStream_id += 2
-            self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]} #closed?
+            self.streams[self.lastStream_id] = INITIAL_STREAM_STATE
 
     def setTable(self, table):
         self.table = table
@@ -362,12 +363,11 @@ class Server(HTTP2Base):
         super(Server, self).__init__(host, port, table)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastStream_id = 2
-        self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]}
+        self.streams[self.lastStream_id] = INITIAL_STREAM_STATE
 
     def runServer(self):
         self.sock.bind((self.host, self.port))
         self.sock.listen(1) # number ?
-        import time
         while True:
             print("Connection waiting...")
             self.con, addr = self.sock.accept()
@@ -380,5 +380,5 @@ class Client(HTTP2Base):
     def __init__(self, host, port, table = None):
         super(Client, self).__init__(host, port, table)
         self.lastStream_id = 1
-        self.streams[self.lastStream_id] = {"state":"open", "header":[True, ""]}
+        self.streams[self.lastStream_id] = INITIAL_STREAM_STATE
         self.sock = socket.create_connection((host, port), 5)
