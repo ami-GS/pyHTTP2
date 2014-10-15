@@ -58,7 +58,14 @@ class HTTP2Base(object):
                 print("err:PROTOCOL_ERROR")
 
             index = 0
-            if Flag == FLAG.PADDED:
+            if Flag == FLAG.END_HEADERS:
+                # tempral test
+                self.streams[Stream_id]["header"][1] += data # Padding is unclear
+                print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
+                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
+                self.streams[Stream_id]["header"] = [True, ""] # init header in a stream
+                return
+            elif Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
@@ -68,15 +75,9 @@ class HTTP2Base(object):
                 weight = upackHex(data[5])
                 index = 5
 
-            # Too long, and is there a case of several flags are set?
+            # Too long
             self.streams[Stream_id]["header"][1] += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-            if Flag == FLAG.END_HEADERS:
-                # tempral test
-                print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
-                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
-                self.streams[Stream_id]["header"] = [True, ""] # init header in a stream
-            else:
-                self.streams[Stream_id]["header"][0] = False
+            self.streams[Stream_id]["header"][0] = False
 
         def _priority(data, Stream_id):
             if Stream_id == 0:
@@ -134,17 +135,18 @@ class HTTP2Base(object):
             if self.streams[Stream_id]["state"] != "open" and self.streams[Stream_id]["state"] != "half closed (remote)":
                 print("err:PROTOCOL_ERROR")
 
-            if Flag == FLAG.END_HEADERS:
-                pass #if not, continuation frame should be come
             index = 0
-            if Flag == FLAG.PADDED:
+            if Flag == FLAG.END_HEADERS:
+                self.streams[Stream_id]["header"][1] += data[index+4:] # TODO:There may be padding?
+                self.streams[Stream_id]["header"] = [True, ""] # TODO:is this needed? header should be decoded
+            elif Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
             R = upackHex(data[index]) & 0x80
             promisedStream_id = upackHex(data[index:index + 4]) & 0x7fffffff
-            wire = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
-            headers = decode(hexlify(Wire))
+            self.streams[Stream_id]["header"][1] += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
+            self.streams[Stream_id]["header"][0] = False
 
         def _ping(data, Flag, Stream_id):
             if len(data) != 8:
@@ -186,6 +188,9 @@ class HTTP2Base(object):
                 print("err:PROTOCOL_ERROR")
             self.streams[Stream_id]["header"] += data
             if Flag == FLAG.END_HEADERS:
+                print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
+                # ready to response status should be made
+                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
                 self.streams[Stream_id]["header"] = [True, ""]
 
         Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
