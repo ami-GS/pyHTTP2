@@ -5,7 +5,7 @@ FRAME_HEADER_SIZE = 9
 
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-INITIAL_STREAM_STATE = {"state":"open", "header":[True,""],"windowSize":65535}
+INITIAL_STREAM_STATE = {"state":"idle", "header":[True,""],"windowSize":65535}
 
 class FrameType():
     DATA = "\x00"
