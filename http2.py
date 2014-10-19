@@ -30,13 +30,9 @@ class HTTP2Base(object):
         self.maxHeaderListSize = SET.INIT_VALUE[6]
         self.goAwayStream_id = -1
         self.readyToPayload = False
-        self.con = None
 
     def send(self, frame):
         self.sock.send(frame)
-
-    def resp(self, frame):
-        self.con.send(frame)
 
     def setState(self, state, sId):
         self.streams[sId][state] = state
@@ -48,19 +44,23 @@ class HTTP2Base(object):
 
         def _data(data, Flag, Stream_id):
             if Stream_id == 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             if self.streams[Stream_id]["state"] == "closed":
-                print("err:STREAM_CLOSED")
+                self.send(self.makeFrame(TYPE.RST_STREAM, err = ERR.PROTOCOL_ERROR))
+            index = 0
             padLen = 0
             if Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
+                index = 1
+                if padLen > (len(data) - 1):
+                    self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             elif Flag == FLAG.END_STREAM:
                 if self.streams[Stream_id]["state"] == "open":
                     self.setState("half closed (remote)", Stream_id)
                 elif self.streams[Stream_id]["state"] == "half closed (local)":
                     self.setState("closed", Stream_id)
                 #here should be refactoring
-            content = data[1: len(data) if Flag != FLAG.PADDED else -padLen]
+            content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
             print("DATA:%s" % (content))
 
         def _headers(data, Flag, Stream_id):
@@ -69,14 +69,13 @@ class HTTP2Base(object):
             else:
                 self.setState("open", Stream_id)
             if Stream_id == 0:
-                print("err:PROTOCOL_ERROR")
-
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             index = 0
             if Flag == FLAG.END_HEADERS:
                 # tempral test
                 self.streams[Stream_id]["header"][1] += data # Padding is unclear
                 print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
-                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
+                self.send(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
                 self.streams[Stream_id]["header"] = [True, ""] # init header in a stream
                 return
             elif Flag == FLAG.PADDED:
@@ -96,23 +95,23 @@ class HTTP2Base(object):
 
         def _priority(data, Stream_id):
             if Stream_id == 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             E = upackHex(data[0]) & 0x80
             streamDependency = upackHex(data[:4]) & 0x7fffffff
             weight = upackHex(data[5])
 
         def _rst_stream(data, Stream_id):
             if Stream_id == 0 or self.streams[Stream_id]["state"] == "idle":
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             else:
                 self.setState("closed", Stream_id)
 
         def _settings(data, Flag, Stream_id):
             if Stream_id != 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             if Flag == FLAG.ACK:
                 if len(data) != 0:
-                    print("err:FRAME_SIZE_ERROR")
+                    self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None))
             elif len(data):
                 Identifier = upackHex(data[:2])
                 Value = upackHex(data[2:6])
@@ -122,33 +121,33 @@ class HTTP2Base(object):
                     if Value == 1 or Value == 0:
                         self.enablePush = Value
                     else:
-                        print("err")
+                        self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
                 elif Identifier == SET.MAX_CONCURRENT_STREAMS:
                     if Value < 100:
                         print("Warnnig: max_concurrent_stream below 100 is not recomended")
                     self.maxConcurrentStreams = Value
                 elif Identifier == SET.INITIAL_WINDOW_SIZE:
                     if Value > MAX_WINDOW_SIZE:
-                        print("err:FLOW_CONTROL_ERROR")
+                        self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.FLOW_CONTOROL_ERROR, debug = None))
                     else:
                         self.initialWindowSize = Value
                 elif Identifier == SET.MAX_FRAME_SIZE:
                     if INITIAL_MAX_FRAME_SIZE <= Value  <= LIMIT_MAX_FRAME_SIZE:
                         self.maxFrameSize = Value
                     else:
-                        print("err:PROTOCOL_ERROR")
+                        self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
                 elif Identifier == SET.MAX_HEADER_LIST_SIZE:
                     self.maxHeaderListSize = Value # ??
                 else:
                     pass # must ignore
                 # must send ack
-                self.resp(self.makeFrame(TYPE.SETTINGS, FLAG.ACK, 0, ident=SET.NO, value = ""))
+                self.send(self.makeFrame(TYPE.SETTINGS, FLAG.ACK, 0, ident=SET.NO, value = ""))
 
         def _push_promise(data, Flag, Stream_id):
             if Stream_id == 0 or self.enablePush == 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             if self.streams[Stream_id]["state"] != "open" and self.streams[Stream_id]["state"] != "half closed (remote)":
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             self.setState("reserved (remote)", Stream_id)
             index = 0
             if Flag == FLAG.END_HEADERS:
@@ -165,19 +164,18 @@ class HTTP2Base(object):
 
         def _ping(data, Flag, Stream_id):
             if len(data) != 8:
-                print("err:FRAME_SIZE_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             if Stream_id != 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             if Flag != FLAG.ACK:
-                # must send ping with flag == ack
                 print("ping response !")
-                self.resp(self.makeFrame(TYPE.PING, FLAG.ACK, 0, ping = data[:8]))
+                self.send(self.makeFrame(TYPE.PING, FLAG.ACK, 0, ping = data[:8]))
             else:
                 print("PING:%s" % (data[:8]))
 
         def _goAway(data, Stream_id):
             if Stream_id != 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             R = upackHex(data[0]) & 0x80
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
@@ -190,23 +188,23 @@ class HTTP2Base(object):
             R = upackHex(data[0]) & 0x80
             windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
             if windowSizeIncrement == 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             elif windowSizeIncrement >  (1 << 31) - 1:
-                print("err:FLOW_CONNECTION_ERROR")
+                # is this correct ?
                 if Stream_id == 0:
-                    self.resp(self.makeFrame(TYPE.GOAWAY, err=ERR.FLOW_CONNECTION_ERROR))
+                    self.send(self.makeFrame(TYPE.GOAWAY, err=ERR.FLOW_CONNECTION_ERROR))
                 else:
-                    self.resp(self.makeFrame(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR))
+                    self.send(self.makeFrame(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR))
 
         def _continuation(data, Flag, Stream_id):
             if Stream_id == 0:
-                print("err:PROTOCOL_ERROR")
+                self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
             self.streams[Stream_id]["header"] += data
 
             if Flag == FLAG.END_HEADERS:
                 print(decode(hexlify(self.streams[Stream_id]["header"][1]), self.table))
                 # ready to response status should be made
-                self.resp(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
+                self.send(self.makeFrame(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0))
                 self.streams[Stream_id]["header"] = [True, ""]
 
         Length, Type, Flags, Stream_id = 0, '\x00', '\x00', 0 #here?
@@ -248,7 +246,7 @@ class HTTP2Base(object):
                     if not self.streams.has_key(Stream_id):
                         self.addStream(Stream_id) # this looks strange
                     if self.streams[Stream_id]["state"] == "closed" and Type != TYPE.PRIORITY:
-                        print("err:STREAM_CLOSED")
+                        self.send(self.makeFrame(TYPE.RST_STREAM, err=ERR.STREAM_CLOSED))
                     print(hexlify(data))
                     print(Length, hexlify(Type), hexlify(Flags), Stream_id, "set")
                     data = data[FRAME_HEADER_SIZE:]
@@ -394,19 +392,19 @@ class HTTP2Base(object):
 class Server(HTTP2Base):
     def __init__(self, host, port, table = None):
         super(Server, self).__init__(host, port, table)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastStream_id = 2
         self.streams[self.lastStream_id] = INITIAL_STREAM_STATE
 
     def runServer(self):
-        self.sock.bind((self.host, self.port))
-        self.sock.listen(1) # number ?
+        self.serv.bind((self.host, self.port))
+        self.serv.listen(1) # number ?
         while True:
             print("Connection waiting...")
-            self.con, addr = self.sock.accept()
+            self.sock, addr = self.serv.accept()
             data = "dummy"
             while len(data):
-                data = self.con.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
+                data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
                 self.parseData(data)
 
 class Client(HTTP2Base):
