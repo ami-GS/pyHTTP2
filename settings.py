@@ -5,8 +5,6 @@ FRAME_HEADER_SIZE = 9
 
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-INITIAL_STREAM_STATE = {"state":"idle", "header":[True,""],"windowSize":65535}
-
 class FrameType():
     DATA = "\x00"
     HEADERS = "\x01"
@@ -51,3 +49,14 @@ class ErrorCode():
     CONNECT_ERROR = "\x0a"
     ENHANCE_YOUR_CALM = "\x0b"
     INADEQUATE_SECURITY = "\x0c"
+
+class State():
+    IDLE = "\x00"
+    RESERVED_L = "\x01"
+    RESERVED_R = "\x02"
+    OPEN = "\x03"
+    HCLOSED_L = "\x04"
+    HCLOSED_R = "\x05"
+    CLOSED = "\x06"
+
+INITIAL_STREAM_STATE = {"state":State.IDLE, "header":[True,""],"windowSize":65535}
