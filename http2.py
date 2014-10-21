@@ -3,12 +3,6 @@ from settings import *
 import socket
 from binascii import hexlify, unhexlify
 
-FLAG = BaseFlag
-TYPE = FrameType
-SET = Settings
-ERR = ErrorCode
-ST = State
-
 def packHex(val, l):
     h = val if type(val) == str else chr(val)
     return "\x00"*(l-len(h)) + h
@@ -200,7 +194,7 @@ class HTTP2Base(object):
         def _continuation(data, Flag, sId):
             if sId == 0:
                 self.send(self.makeFrame(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None))
-            self.streams[sId]["header"] += data
+            self.streams[sId]["header"][1] += data
 
             if Flag == FLAG.END_HEADERS:
                 print(decode(hexlify(self.streams[sId]["header"][1]), self.table))
@@ -254,10 +248,10 @@ class HTTP2Base(object):
                     self.readyToPayload = True
 
     def makeFrame(self, Type, flag=FLAG.NO, stream_id=0, **kwargs):
-        def _HTTP2Frame(length, Type, flag, stream_id):
+        def _HTTP2Frame(length):
             return packHex(length, 3) + packHex(Type, 1) + packHex(flag, 1) + packHex(stream_id, 4)
 
-        def _data(flag, **kwargs):
+        def _data():
             frame = ""
             padding = ""
             if flag == FLAG.PADDED:
@@ -271,7 +265,7 @@ class HTTP2Base(object):
             frame += kwargs["data"] #TODO data length should be configured
             return frame + padding
 
-        def _headers(flag, **kwargs):
+        def _headers():
             frame = ""
             padding = ""
             if self.streams[stream_id]["state"] == ST.RESERVED_L:
@@ -297,7 +291,7 @@ class HTTP2Base(object):
             frame += wire + padding
             return frame
 
-        def _priority(**kwargs):
+        def _priority():
             streamDependency = packHex(kwargs["depend"], 4)
             if kwargs.has_key("E") and kwargs["E"]:
                 # TODO: must fix, not cool
@@ -305,17 +299,17 @@ class HTTP2Base(object):
             weight = packHex(kwargs["weight"], 1)
             return streamDependency + weight
 
-        def _rst_stream(**kwargs):
+        def _rst_stream():
             self.setState(ST.CLOSED, stream_id)
             return packHex(kwargs["err"], 4)
 
-        def _settings(flag, **kwargs):
+        def _settings():
             if flag == FLAG.NO or flag == FLAG.ACK:
                 return ""
             frame = packHex(kwargs["identifier"], 2) + packHex(kwargs["value"], 4)
             return frame
 
-        def _push_promise(flag, **kwargs):
+        def _push_promise():
             frame = ""
             padding = ""
             if flag == FLAG.PADDED:
@@ -332,17 +326,17 @@ class HTTP2Base(object):
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
             return frame + promisedsId + wire + padding
 
-        def _ping(**kwargs):
+        def _ping():
             return packHex(kwargs["ping"], 8)
 
-        def _goAway(**kwargs):
+        def _goAway():
             # R also should be here
             frame = packHex(self.lastsId, 4)
             frame += packHex(kwargs["err"], 4)
             frame += kwargs["debug"] if kwargs["debug"] else ""
             return frame
 
-        def _window_update(**kwargs):
+        def _window_update():
             windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
             if kwargs.has_key("R") and kwargs["R"]:
                 windowSizeIncrement[0] = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:])
@@ -353,28 +347,28 @@ class HTTP2Base(object):
             return wire
 
         if Type == TYPE.DATA:
-            frame = _data(flag, **kwargs) # TODO  manage stream_id
+            frame = _data() # TODO  manage stream_id
         elif Type == TYPE.HEADERS:
-            frame = _headers(flag, **kwargs)
+            frame = _headers()
         elif Type == TYPE.PRIORITY:
-            frame = _priority(**kwargs)
+            frame = _priority()
         elif Type == TYPE.RST_STREAM:
-            frame = _rst_stream(**kwargs)
+            frame = _rst_stream()
         elif Type == TYPE.SETTINGS:
-            frame = _settings(flag, **kwargs)
+            frame = _settings()
         elif Type == TYPE.PUSH_PROMISE:
-            FRAME = _push_promise(flag, **kwargs)
+            FRAME = _push_promise()
         elif Type == TYPE.PING:
-            frame = _ping(**kwargs)
+            frame = _ping()
         elif Type == TYPE.GOAWAY:
-            frame = _goAway(**kwargs)
+            frame = _goAway()
         elif Type == TYPE.WINDOW_UPDATE:
             frame = _window_update()
         elif Type == TYPE.CONTINUATION:
             frame = _continuation()
         else:
             print("err:undefined frame type", Type)
-        http2Frame = _HTTP2Frame(len(frame), Type, flag, stream_id)
+        http2Frame = _HTTP2Frame(len(frame))
         return http2Frame + frame
 
     def addStream(self, sId = 0):

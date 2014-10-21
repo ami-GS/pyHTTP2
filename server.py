@@ -1,6 +1,5 @@
-from http2 import Server
+from connection import Server
 from pyHPACK.tables import Table
-import socket
 import sys
 
 table = Table()

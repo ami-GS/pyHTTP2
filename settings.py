@@ -60,3 +60,9 @@ class State():
     CLOSED = "\x06"
 
 INITIAL_STREAM_STATE = {"state":State.IDLE, "header":[True,""],"windowSize":65535}
+
+TYPE = FrameType
+FLAG = BaseFlag
+ERR = ErrorCode
+ST = State
+SET = Settings

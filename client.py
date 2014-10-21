@@ -1,32 +1,29 @@
-from settings import BaseFlag, FrameType, ErrorCode, Settings, CONNECTION_PREFACE
+from settings import *
 import sys
-from http2 import Client
 from pyHPACK.tables import Table
 from binascii import hexlify
 import time
+from connection import Client
 
-Flag = BaseFlag
-Type = FrameType
 table = Table()
-Err = ErrorCode
-Set = Settings
 
 def access(host, port):
     con = Client(host, port)
     con.setTable(table)
-
-    con.send(CONNECTION_PREFACE)
-    con.send(con.makeFrame(Type.SETTINGS, ident=Set.NO, value=""))
-    headers = [[":method", "GET"], [":scheme", "http"], [":authority", "127.0.0.1"], [":path", "/"]]
-    con.setHeaders(headers)
-    con.send(con.makeFrame(Type.HEADERS, Flag.END_HEADERS, 1))
-    con.send(con.makeFrame(Type.PING, ping="hello"))
-    con.send(con.makeFrame(Type.GOAWAY, err = Err.NO_ERROR, debug = None))
+    con.notifyHTTP2()
+    con.send(TYPE.SETTINGS, ident=SET.NO, value = "")
+    con.send(TYPE.HEADERS, FLAG.END_HEADERS, 1, headers = [[":method", "GET"],
+                                                           [":scheme", "http"],
+                                                           [":authority", "127.0.0.1"],
+                                                           [":path", "/"]])
+    con.send(TYPE.PING, ping = "hello!!!!!")
+    con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
     for i in range(2):
         data = con.sock.recv(1024)
         print(hexlify(data))
         con.parseData(data)
     time.sleep(1)
+
 
 if __name__ == "__main__":
     host = "127.0.0.1"
