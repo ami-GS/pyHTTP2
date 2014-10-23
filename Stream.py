@@ -131,7 +131,7 @@ class Stream():
         elif fType == TYPE.SETTINGS:
             frame = _settings()
         elif fType == TYPE.PUSH_PROMISE:
-            FRAME = _push_promise()
+            frame = _push_promise()
         elif fType == TYPE.PING:
             frame = _ping()
         elif fType == TYPE.GOAWAY:
