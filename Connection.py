@@ -16,16 +16,19 @@ class Connection(object):
         self.maxFrameSize = SET.INIT_VALUE[5]
         self.maxHeaderListSize = SET.INIT_VALUE[6]
         self.readyToPayload = False
+        self.goAwayId = 0
         self.Wire = ""
         self.finWire = True
 
-    def send(self, frameType, flag = FLAG.NO, sId = 0, **kwargs):
+    def send(self, frameType, flag = FLAG.NO, streamId = 0, **kwargs):
         # here?
         if kwargs.has_key("headers"):
             kwargs["wire"] = unhexlify(encode(kwargs["headers"], True, True, True, self.table))
+        if frameType == TYPE.PUSH_PROMISE:
+            self.addStream(kwargs["pushId"]) # correct?
         if frameType == TYPE.GOAWAY:
             kwargs["lastId"] = self.lastId # straem's class mamber should have this
-        frame = self.streams[sId].makeFrame(frameType, flag, **kwargs)
+        frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
         self.sock.send(frame)
 
     def parseData(self, data):
@@ -39,7 +42,9 @@ class Connection(object):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
             if self.streams[sId].state == ST.CLOSED:
-                self.send(TYPE.RST_STREAM, err = ERR.PROTOCOL_ERROR)
+                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR.PROTOCOL_ERROR)
+            if self.streams[sId].state != ST.OPEN or self.streams[sId].state != ST.HCLOSED_L:
+                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR.STREAM_CLOSED)
             index = 0
             padLen = 0
             if Flag == FLAG.PADDED:
@@ -101,12 +106,13 @@ class Connection(object):
                 self.streams[sId].setState(ST.CLOSED)
 
         def _settings(data):
+            # TODO: here should be wrap by try: except: ?
             if sId != 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
             if Flag == FLAG.ACK:
-                if len(data) != 0:
+                if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None)
-            elif len(data):
+            elif Length:
                 Identifier = upackHex(data[:2])
                 Value = upackHex(data[2:6])
                 if Identifier == SET.HEADER_TABLE_SIZE:
@@ -117,7 +123,7 @@ class Connection(object):
                     else:
                         self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
                 elif Identifier == SET.MAX_CONCURRENT_STREAMS:
-                    if Value < 100:
+                    if Value <= 100:
                         print("Warnnig: max_concurrent_stream below 100 is not recomended")
                     self.maxConcurrentStreams = Value
                 elif Identifier == SET.INITIAL_WINDOW_SIZE:
@@ -140,33 +146,38 @@ class Connection(object):
         def _push_promise(data):
             if sId == 0 or self.enablePush == 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-            if self.streams[sId].state != ST.OPEN and self.streams[sId].state != ST.HCLOSED_R:
+            if self.streams[sId].state != ST.OPEN and self.streams[sId].state != ST.HCLOSED_L:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+
             self.streams[sId].setState(ST.RESERVED_R)
             index = 0
             if Flag == FLAG.END_HEADERS:
                 self.Wire += data[index+4:] # TODO:There may be padding?
-                #self.streams[sId]["header"] = [True, ""] # TODO:is this needed? header should be decoded
-
+                print(decode(hexlify(self.Wire), self.table)) # TODO: do something
+                self.Wire = ""
+                self.finWire = True
             elif Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
             R = upackHex(data[index]) & 0x80
-            promisedsId = upackHex(data[index:index + 4]) & 0x7fffffff
-            self.Wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
-            self.finWire = False
+            promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
+            self.addStream(promisedId)
+            # TODO: here should be optimised
+            if Flag != FLAG.END_HEADERS:
+                self.Wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
+                self.finWire = False
 
         def _ping(data):
-            if len(data) != 8:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+            if Length != 8:
+                self.send(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None)
             if sId != 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
             if Flag != FLAG.ACK:
                 print("ping response !")
-                self.send(TYPE.PING, FLAG.ACK, 0, ping = data[:8])
+                self.send(TYPE.PING, FLAG.ACK, 0, ping = data)
             else:
-                print("PING:%s" % (data[:8]))
+                print("PING:%s" % (data))
 
         def _goAway(data):
             if sId != 0:
@@ -195,7 +206,7 @@ class Connection(object):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
             self.Wire += data
-
+            self.finWire = False
             if Flag == FLAG.END_HEADERS:
                 print(decode(hexlify(self.Wire), self.table))
                 # ready to response status should be made
@@ -204,6 +215,9 @@ class Connection(object):
                 self.streams[sId].Wire = ""
                 self.streams[sId].finWire = True
 
+        if self.goAwayId and self.goAwayId < sId:
+            # must ignore
+            return
         while len(data) or Type == TYPE.SETTINGS:
             if data.startswith(CONNECTION_PREFACE):
                 #send settings (this may be empty)

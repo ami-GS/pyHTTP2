@@ -38,6 +38,7 @@ class Stream():
                 elif self.state == ST.HCLOSED_R:
                     self.setState(ST.CLOSED)
             frame += kwargs["data"] #TODO data length should be configured
+
             return frame + padding
 
         def _headers():
@@ -93,12 +94,11 @@ class Stream():
                 pass
             # make new stream
             self.setState(ST.RESERVED_L)
-            self.addStream()
-            promisedsId += packHex(kwargs["pushId"], 4)
+            promisedId = packHex(kwargs["pushId"], 4)
             if kwargs.has_key("R") and kwargs["R"]:
-                promisedsId[0] = unhexlify(hex(upackHex(promisedsId[0]) | 0x80)[2:])
+                promisedId[0] = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:])
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
-            return frame + promisedsId + wire + padding
+            return frame + promisedId + wire + padding
 
         def _ping():
             return packHex(kwargs["ping"], 8)
