@@ -10,7 +10,8 @@ class Connection(object):
     def __init__(self, host, port, table):
         self.sock = None
         self.table = table
-        self.streams = {0:Stream(0)} # for future type
+        self.streams = {}
+        self.addStream(0)
         self.enablePush = SET.INIT_VALUE[2]
         self.maxConcurrentStreams = SET.INIT_VALUE[3]
         self.maxFrameSize = SET.INIT_VALUE[5]
@@ -24,10 +25,6 @@ class Connection(object):
         # here?
         if kwargs.has_key("headers"):
             kwargs["wire"] = unhexlify(encode(kwargs["headers"], True, True, True, self.table))
-        if frameType == TYPE.PUSH_PROMISE:
-            self.addStream(kwargs["pushId"]) # correct?
-        if frameType == TYPE.GOAWAY:
-            kwargs["lastId"] = self.lastId # straem's class mamber should have this
         frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
         self.sock.send(frame)
 
@@ -149,7 +146,6 @@ class Connection(object):
             if self.streams[sId].state != ST.OPEN and self.streams[sId].state != ST.HCLOSED_L:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
 
-            self.streams[sId].setState(ST.RESERVED_R)
             index = 0
             if Flag == FLAG.END_HEADERS:
                 self.Wire += data[index+4:] # TODO:There may be padding?
@@ -162,7 +158,7 @@ class Connection(object):
                 index = 1
             R = upackHex(data[index]) & 0x80
             promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
-            self.addStream(promisedId)
+            self.addStream(promisedId, ST.RESERVED_R)
             # TODO: here should be optimised
             if Flag != FLAG.END_HEADERS:
                 self.Wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
@@ -268,8 +264,8 @@ class Connection(object):
     def setHeaders(self, headers):
         self.headers = headers
 
-    def addStream(self, stream):
-        self.streams[stream] = Stream(stream)
+    def addStream(self, stream, state = ST.IDLE):
+        self.streams[stream] = Stream(stream, self, state)
 
 class Server(Connection):
     def __init__(self, host, port, table = None):
@@ -277,7 +273,7 @@ class Server(Connection):
         self.serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lastId = 2
         self.serv.bind((host, port))
-        self.streams[self.lastId] = Stream(self.lastId)
+        self.addStream(self.lastId)
 
     def runServer(self):
         self.serv.listen(1) # number ?
@@ -293,7 +289,7 @@ class Client(Connection):
     def __init__(self, host, port, table = None):
         super(Client, self).__init__(host, port, table)
         self.lastId = 1
-        self.streams[self.lastId] = Stream(self.lastId)
+        self.addStream(self.lastId)
         self.sock = socket.create_connection((host, port), 5)
 
     def notifyHTTP2(self):

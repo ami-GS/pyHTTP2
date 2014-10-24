@@ -3,9 +3,10 @@ from util import *
 
 
 class Stream():
-    def __init__(self, stream_id):
+    def __init__(self, stream_id, connection, state):
         self.sId = stream_id
-        self.state = "idle"
+        self.connection = connection
+        self.state = state
         self.windowSize = Settings.INIT_VALUE[4]
         self.Wire = ""
         self.finWire = True
@@ -93,8 +94,8 @@ class Stream():
             elif flag == FLAG.END_HEADERS:
                 pass
             # make new stream
-            self.setState(ST.RESERVED_L)
             promisedId = packHex(kwargs["pushId"], 4)
+            self.connection.addStream(kwargs["pushId"], ST.RESERVED_L)
             if kwargs.has_key("R") and kwargs["R"]:
                 promisedId[0] = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:])
             wire = unhexlify(encode(self.headers, True, True, True, self.table))
@@ -105,7 +106,7 @@ class Stream():
 
         def _goAway():
             # R also should be here
-            frame = packHex(kwargs["lastId"], 4)
+            frame = packHex(self.connection.lastId, 4)
             frame += packHex(kwargs["err"], 4)
             frame += kwargs["debug"] if kwargs["debug"] else ""
             return frame
