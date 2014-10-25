@@ -17,6 +17,6 @@ if __name__ == "__main__":
 
     if len(args) == 3:
         host = args[1]
-        port = args[2]
+        port = int(args[2])
 
     runServer(host, port)
