@@ -20,13 +20,19 @@ class Connection(object):
         self.goAwayId = 0
         self.Wire = ""
         self.finWire = True
+        # temporaly using
+        self.wireLenLimit = 24
 
     def send(self, frameType, flag = FLAG.NO, streamId = 0, **kwargs):
-        # here?
-        if kwargs.has_key("headers"):
-            kwargs["wire"] = unhexlify(encode(kwargs["headers"], True, True, True, self.table))
         frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
         self.sock.send(frame)
+        # here?
+        while len(self.streams[streamId].wire):
+            if len(self.streams[streamId].wire) > self.wireLenLimit:
+                frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.NO)
+            else:
+                frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
+            self.sock.send(frame)
 
     def parseData(self, data):
         Length, Type, Flag, sId = 0, '\x00', '\x00', 0 #here?

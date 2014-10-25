@@ -12,12 +12,13 @@ def access(host, port):
     con.setTable(table)
     con.notifyHTTP2()
     con.send(TYPE.SETTINGS, ident=SET.NO, value = "")
-    con.send(TYPE.HEADERS, FLAG.END_HEADERS, 1, headers = [[":method", "GET"],
-                                                           [":scheme", "http"],
-                                                           [":authority", "127.0.0.1"],
-                                                           [":path", "/"]])
+    con.send(TYPE.HEADERS, FLAG.NO, 1, headers = [[":method", "GET"],
+                                                  [":scheme", "http"],
+                                                  [":authority", "127.0.0.1"],
+                                                  [":path", "/"]])
     con.send(TYPE.PING, ping = "hello!!!!!")
     con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
+
     for i in range(2):
         data = con.sock.recv(1024)
         print(hexlify(data))

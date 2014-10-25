@@ -1,6 +1,7 @@
 from settings import *
 from util import *
-
+from binascii import unhexlify
+from pyHPACK.HPACK import encode
 
 class Stream():
     def __init__(self, stream_id, connection, state):
@@ -8,8 +9,7 @@ class Stream():
         self.connection = connection
         self.state = state
         self.windowSize = Settings.INIT_VALUE[4]
-        self.Wire = ""
-        self.finWire = True
+        self.wire = ""
 
     def setWindowSize(self, windowSize):
         self.windowSize = windowSize
@@ -45,6 +45,11 @@ class Stream():
         def _headers():
             frame = ""
             padding = ""
+            if kwargs.has_key("headers"):
+                self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
+                # not cool, should be optimised
+                if len(self.wire) <= self.connection.wireLenLimit:
+                    flag == FLAG.END_HEADERS
             if self.state == ST.RESERVED_L:
                 self.setState(ST.HCLOSED_R) # suspicious
             self.setState(ST.OPEN) # here?
@@ -62,9 +67,12 @@ class Stream():
             elif flag == FLAG.END_STREAM:
                 self.setState(ST.HCLOSED_L)
 
-            # continuation frame should be used if length is ~~ ?
-           # should continuation frame be used from app side??
-            frame += kwargs["wire"] + padding
+            # TODO: wire len limit should be configured properly
+            if len(self.wire) > self.connection.wireLenLimit:
+                frame += self.wire[:self.connection.wireLenLimit] + padding
+                self.wire = self.wire[self.connection.wireLenLimit:]
+            else:
+                frame += self.wire + padding
             return frame
 
         def _priority():
@@ -117,9 +125,10 @@ class Stream():
                 windowSizeIncrement[0] = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:])
             return windowSizeIncrement
 
-        def _continuation(wire):
-            # enough
-            return wire
+        def _continuation():
+            frame = self.wire[:self.connection.wireLenLimit]
+            self.wire = self.wire[self.connection.wireLenLimit:]
+            return frame
 
         if fType == TYPE.DATA:
             frame = _data() # TODO  manage stream_id
