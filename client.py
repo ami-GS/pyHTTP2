@@ -16,6 +16,11 @@ def access(host, port):
                                                   [":scheme", "http"],
                                                   [":authority", "127.0.0.1"],
                                                   [":path", "/"]])
+
+    con.send(TYPE.PUSH_PROMISE, FLAG.NO, 1, pushId = 3, headers = [[":method", "GET"],
+                                                                   [":scheme", "http"],
+                                                                   [":authority", "127.0.0.1"],
+                                                                   [":path", "/"]])
     con.send(TYPE.PING, ping = "hello!!!!!")
     con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
 

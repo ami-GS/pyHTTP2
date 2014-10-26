@@ -73,6 +73,7 @@ class Stream():
                 self.wire = self.wire[self.connection.wireLenLimit:]
             else:
                 frame += self.wire + padding
+                self.wire = ""
             return frame
 
         def _priority():
@@ -99,15 +100,25 @@ class Stream():
             if flag == FLAG.PADDED:
                 frame += packHex(kwargs["padLen"], 1)
                 padding = packHex(0, kwargs["padLen"])
-            elif flag == FLAG.END_HEADERS:
-                pass
+            if kwargs.has_key("headers"):
+                self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
+                # not cool, should be optimised
+                if len(self.wire) <= self.connection.wireLenLimit:
+                    flag == FLAG.END_HEADERS
             # make new stream
             promisedId = packHex(kwargs["pushId"], 4)
             self.connection.addStream(kwargs["pushId"], ST.RESERVED_L)
             if kwargs.has_key("R") and kwargs["R"]:
                 promisedId[0] = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:])
-            wire = unhexlify(encode(self.headers, True, True, True, self.table))
-            return frame + promisedId + wire + padding
+
+            if len(self.wire) > self.connection.wireLenLimit:
+                wire = self.wire[:self.connection.wireLenLimit] + padding
+                self.wire = self.wire[self.connection.wireLenLimit:]
+            else:
+                wire = self.wire + padding
+                self.wire = ""
+
+            return frame + promisedId + wire
 
         def _ping():
             return packHex(kwargs["ping"], 8)
