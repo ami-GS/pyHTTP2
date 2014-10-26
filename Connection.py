@@ -18,8 +18,6 @@ class Connection(object):
         self.maxHeaderListSize = SET.INIT_VALUE[6]
         self.readyToPayload = False
         self.goAwayId = 0
-        self.Wire = ""
-        self.finWire = True
         # temporaly using
         self.wireLenLimit = 24
 
@@ -74,11 +72,10 @@ class Connection(object):
             index = 0
             if Flag == FLAG.END_HEADERS:
                 # tempral test
-                self.Wire += data # Padding is unclear
-                print(decode(hexlify(self.Wire), self.table))
+                self.streams[sId].wire += data
+                print(decode(hexlify(self.streams[sId].wire), self.table))
                 self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
-                self.Wire = ""
-                self.finWire = True
+                self.streams[sId].wire = ""
                 return
             elif Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
@@ -92,8 +89,7 @@ class Connection(object):
             elif Flag == FLAG.END_STREAM:
                 self.streams[sId].setState(ST.HCLOSED_R)
             # Too long
-            self.Wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-            self.finWire = False
+            self.streams[sId].wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
 
         def _priority(data):
             if sId == 0:
@@ -153,12 +149,7 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
 
             index = 0
-            if Flag == FLAG.END_HEADERS:
-                self.Wire += data[index+4:] # TODO:There may be padding?
-                print(decode(hexlify(self.Wire), self.table)) # TODO: do something
-                self.Wire = ""
-                self.finWire = True
-            elif Flag == FLAG.PADDED:
+            if Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
                 index = 1
@@ -166,9 +157,10 @@ class Connection(object):
             promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
             self.addStream(promisedId, ST.RESERVED_R)
             # TODO: here should be optimised
-            if Flag != FLAG.END_HEADERS:
-                self.Wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
-                self.finWire = False
+            self.streams[sId].wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
+            if Flag == FLAG.END_HEADERS:
+                print(decode(hexlify(self.streams[sId].wire), self.table))
+                self.streams[sId].wire = ""
 
         def _ping(data):
             if Length != 8:
@@ -207,15 +199,13 @@ class Connection(object):
         def _continuation(data):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-            self.Wire += data
-            self.finWire = False
+            self.streams[sId].wire += data
             if Flag == FLAG.END_HEADERS:
-                print(decode(hexlify(self.Wire), self.table))
+                print(decode(hexlify(self.streams[sId].wire), self.table))
                 # ready to response status should be made
-                self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
-                #self.streams[sId]["header"] = [True, ""]
-                self.streams[sId].Wire = ""
-                self.streams[sId].finWire = True
+                # issue:  this cause sender print(decode(wire)) TODO: must be fixed
+                #self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
+                self.streams[sId].wire = ""
 
         if self.goAwayId and self.goAwayId < sId:
             # must ignore
@@ -259,8 +249,8 @@ class Connection(object):
                         self.addStream(sId) # this looks strange
                     if self.streams[sId].state == ST.CLOSED and Type != TYPE.PRIORITY:
                         self.send(TYPE.RST_STREAM, err=ERR.STREAM_CLOSED)
-                    print(hexlify(data))
-                    print(Length, hexlify(Type), hexlify(Flag), sId, "set")
+                    #print(hexlify(data))
+                    #print(Length, hexlify(Type), hexlify(Flag), sId, "set")
                     data = data[FRAME_HEADER_SIZE:]
                     self.readyToPayload = True
 
