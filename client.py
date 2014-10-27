@@ -21,7 +21,11 @@ def access(host, port):
                                                                    [":scheme", "http"],
                                                                    [":authority", "127.0.0.1"],
                                                                    [":path", "/"]])
+    #con.send(TYPE.PRIORITY, FLAG.NO, 1, E = 1, depend = 1, weight = 1)
     con.send(TYPE.PING, ping = "hello!!!!!")
+    con.send(TYPE.WINDOW_UPDATE, streamId = 0, windowSizeIncrement = 10, R = 1)
+    con.send(TYPE.WINDOW_UPDATE, streamId = 1, windowSizeIncrement = 10, R = 1)
+    con.send(TYPE.RST_STREAM, streamId = 1, err = ERR.NO_ERROR)
     con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
 
     for i in range(2):

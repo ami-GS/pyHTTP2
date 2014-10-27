@@ -96,7 +96,7 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
             E = upackHex(data[0]) & 0x80
             streamDependency = upackHex(data[:4]) & 0x7fffffff
-            weight = upackHex(data[5])
+            weight = upackHex(data[4])
 
         def _rst_stream(data):
             if sId == 0 or self.streams[sId].state == ST.IDLE:

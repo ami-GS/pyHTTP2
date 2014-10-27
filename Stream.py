@@ -59,7 +59,7 @@ class Stream():
             elif flag == FLAG.PRIORITY:
                 streamDependency = packHex(kwargs["depend"], 4)
                 if kwargs.has_key("E") and kwargs["E"]:
-                    streamDependency[0] = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:])
+                    streamDependency = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:]) + streamDependency[1:]
                 frame += streamDependency
                 frame += packHex(kwargs["weight"], 1) # Weight
             elif flag == FLAG.END_HEADERS:
@@ -80,7 +80,7 @@ class Stream():
             streamDependency = packHex(kwargs["depend"], 4)
             if kwargs.has_key("E") and kwargs["E"]:
                 # TODO: must fix, not cool
-                streamDependency[0] = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:])
+                streamDependency = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:]) + streamDependency[1:]
             weight = packHex(kwargs["weight"], 1)
             return streamDependency + weight
 
@@ -109,7 +109,7 @@ class Stream():
             promisedId = packHex(kwargs["pushId"], 4)
             self.connection.addStream(kwargs["pushId"], ST.RESERVED_L)
             if kwargs.has_key("R") and kwargs["R"]:
-                promisedId[0] = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:])
+                promisedId = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:]) + promisedId[1:]
 
             if len(self.wire) > self.connection.wireLenLimit:
                 wire = self.wire[:self.connection.wireLenLimit] + padding
@@ -133,7 +133,7 @@ class Stream():
         def _window_update():
             windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
             if kwargs.has_key("R") and kwargs["R"]:
-                windowSizeIncrement[0] = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:])
+                windowSizeIncrement = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:]) + windowSizeIncrement[1:]
             return windowSizeIncrement
 
         def _continuation():
