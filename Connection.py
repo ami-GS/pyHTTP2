@@ -214,29 +214,41 @@ class Connection(object):
             if data.startswith(CONNECTION_PREFACE):
                 #send settings (this may be empty)
                 data = data.lstrip(CONNECTION_PREFACE)
+                print("recv connection preface")
             else:
-                print(Length, hexlify(Type), hexlify(Flag), sId, self.readyToPayload)
+                #print(Length, hexlify(Type), hexlify(Flag), sId, self.readyToPayload)
                 if self.readyToPayload:
                     if Type == TYPE.DATA:
                         _data(data[:Length])
+                        print("recv DATA frame")
                     elif Type == TYPE.HEADERS:
                         _headers(data[:Length])
+                        print("recv HEADERS frame")
                     elif Type == TYPE.PRIORITY:
                         _priority(data[:Length])
+                        print("recv PRIORITY frame")
                     elif Type == TYPE.RST_STREAM:
                         _rst_stream(data[:Length])
+                        print("recv RST_STREAM frame")
                     elif Type == TYPE.SETTINGS:
                         _settings(data[:Length])
+                        print("recv SETTINGS frame")
                     elif Type == TYPE.PUSH_PROMISE:
                         _push_promise(data[:Length])
+                        print("recv PUSH_PROMISE frame")
                     elif Type == TYPE.PING:
                         _ping(data[:Length])
+                        print("recv PING frame")
                     elif Type == TYPE.GOAWAY:
                         _goAway(data[:Length])
+                        print hexlify(data[:Length])
+                        print("recv GOAWAY frame")
                     elif Type == TYPE.WINDOW_UPDATE:
                         _window_update(data[:Length])
+                        print("recv WINDOW_UPDATE frame")
                     elif Type == TYPE.CONTINUATION:
                         _continuation(data[:Length])
+                        print("recv CONTINUATION frame")
                     else:
                         print("err:undefined frame type",Type)
                     data = data[Length:]
