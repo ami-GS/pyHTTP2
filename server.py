@@ -13,7 +13,7 @@ def runServer(host, port):
 if __name__ == "__main__":
     args = sys.argv
     host = "127.0.0.1"
-    port = 8080
+    port = 8888
 
     if len(args) == 3:
         host = args[1]
