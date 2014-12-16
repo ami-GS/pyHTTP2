@@ -276,10 +276,10 @@ class Server(Connection):
         while True:
             print("Connection waiting...")
             self.sock, addr = self.serv.accept()
-            data = "dummy"
+            data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
             while len(data):
-                data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
                 self.parseData(data)
+                data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
 
 class Client(Connection):
     def __init__(self, host, port, table = None):
