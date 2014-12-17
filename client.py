@@ -4,11 +4,22 @@ from pyHPACK.tables import Table
 from binascii import hexlify
 import time
 from connection import Client
+from threading import Thread
 
 table = Table()
 
+def recv(con):
+    try:
+        while True:
+            data = con.sock.recv(1024)
+            con.parseData(data)
+    except Exception as e:
+        return
+
 def access(host, port):
     con = Client(host, port)
+    t = Thread(target=recv, args = (con,))
+    t.start()
     con.setTable(table)
     con.notifyHTTP2()
     time.sleep(0.2)
@@ -35,12 +46,6 @@ def access(host, port):
     con.send(TYPE.RST_STREAM, streamId = 1, err = ERR.NO_ERROR)
     time.sleep(0.2)
     con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
-
-    for i in range(1):
-        data = con.sock.recv(1024)
-        #print(hexlify(data))
-        con.parseData(data)
-    time.sleep(1)
 
 
 if __name__ == "__main__":
