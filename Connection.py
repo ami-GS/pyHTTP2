@@ -69,6 +69,7 @@ class Connection(object):
                 self.streams[sId].setState(ST.OPEN)
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+
             index = 0
             if Flag == FLAG.END_HEADERS:
                 # tempral test
@@ -194,7 +195,7 @@ class Connection(object):
                 if sId == 0:
                     self.send(TYPE.GOAWAY, err=ERR.FLOW_CONNECTION_ERROR)
                 else:
-                    self.send(TYPE.RST_STREAM, err=ERR.FLOW_CONNECTION_ERROR)
+                    self.send(TYPE.RST_STREAM, streamId = sId, err=ERR.FLOW_CONNECTION_ERROR)
 
         def _continuation(data):
             if sId == 0:
@@ -248,7 +249,7 @@ class Connection(object):
                     if not self.streams.has_key(sId):
                         self.addStream(sId) # this looks strange
                     if self.streams[sId].state == ST.CLOSED and Type != TYPE.PRIORITY:
-                        self.send(TYPE.RST_STREAM, err=ERR.STREAM_CLOSED)
+                        self.send(TYPE.RST_STREAM, streamId = sId, err=ERR.STREAM_CLOSED)
                     #print(hexlify(data))
                     #print(Length, hexlify(Type), hexlify(Flag), sId, "set")
                     data = data[FRAME_HEADER_SIZE:]
