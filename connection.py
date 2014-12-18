@@ -264,13 +264,3 @@ class Connection(object):
 
     def addStream(self, stream, state = ST.IDLE):
         self.streams[stream] = Stream(stream, self, state)
-
-class Client(Connection):
-    def __init__(self, host, port, table = None):
-        super(Client, self).__init__(host, port)
-        self.lastId = 1
-        self.addStream(self.lastId)
-        self.sock = socket.create_connection((host, port), 5)
-
-    def notifyHTTP2(self):
-        self.sock.send(CONNECTION_PREFACE)
