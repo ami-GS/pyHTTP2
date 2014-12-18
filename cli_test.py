@@ -2,21 +2,11 @@ from settings import *
 import sys
 from binascii import hexlify
 import time
-from connection import Client
+from client import Client
 from threading import Thread
-
-def recv(con):
-    try:
-        while True:
-            data = con.sock.recv(1024)
-            con.parseData(data)
-    except Exception as e:
-        return
 
 def access(host, port):
     con = Client(host, port)
-    t = Thread(target=recv, args = (con,))
-    t.start()
     con.notifyHTTP2()
     time.sleep(0.2)
     con.send(TYPE.SETTINGS, ident=SET.NO, value = "")
