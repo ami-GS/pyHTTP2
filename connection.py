@@ -4,12 +4,13 @@ import socket
 from util import *
 from binascii import unhexlify
 from pyHPACK.HPACK import encode, decode
-
+from pyHPACK.tables import Table
 
 class Connection(object):
-    def __init__(self, host, port, table):
-        self.sock = None
-        self.table = table
+    def __init__(self, sock, addr):
+        self.sock = sock
+        self.addr = addr
+        self.table = Table()
         self.streams = {}
         self.addStream(0)
         self.enablePush = SET.INIT_VALUE[2]
@@ -264,27 +265,9 @@ class Connection(object):
     def addStream(self, stream, state = ST.IDLE):
         self.streams[stream] = Stream(stream, self, state)
 
-class Server(Connection):
-    def __init__(self, host, port, table = None):
-        super(Server, self).__init__(host, port, table)
-        self.serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.lastId = 2
-        self.serv.bind((host, port))
-        self.addStream(self.lastId)
-
-    def runServer(self):
-        self.serv.listen(1) # number ?
-        while True:
-            print("Connection waiting...")
-            self.sock, addr = self.serv.accept()
-            data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
-            while len(data):
-                self.parseData(data)
-                data = self.sock.recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8) # here should use window length ?
-
 class Client(Connection):
     def __init__(self, host, port, table = None):
-        super(Client, self).__init__(host, port, table)
+        super(Client, self).__init__(host, port)
         self.lastId = 1
         self.addStream(self.lastId)
         self.sock = socket.create_connection((host, port), 5)

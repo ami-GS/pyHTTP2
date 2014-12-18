@@ -1,4 +1,4 @@
-from connection import Server
+from serv import Server
 from pyHPACK.tables import Table
 import sys
 
@@ -6,7 +6,6 @@ table = Table()
 
 def runServer(host, port):
     con = Server(host, port)
-    con.setTable(table) 
     con.runServer()
 
 
