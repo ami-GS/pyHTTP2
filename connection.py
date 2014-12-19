@@ -114,31 +114,31 @@ class Connection(object):
                 if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None)
             elif Length:
-                Identifier = upackHex(data[:2])
-                Value = upackHex(data[2:6])
-                if Identifier == SET.HEADER_TABLE_SIZE:
-                    self.table.setMaxHeaderTableSize(Value)
-                elif Identifier == SET.ENABLE_PUSH:
-                    if Value == 1 or Value == 0:
-                        self.enablePush = Value
+                identifier = upackHex(data[:2])
+                value = upackHex(data[2:6])
+                if identifier == SET.HEADER_TABLE_SIZE:
+                    self.table.setMaxHeaderTableSize(value)
+                elif identifier == SET.ENABLE_PUSH:
+                    if value == 1 or value == 0:
+                        self.enablePush = value
                     else:
                         self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-                elif Identifier == SET.MAX_CONCURRENT_STREAMS:
-                    if Value <= 100:
+                elif identifier == SET.MAX_CONCURRENT_STREAMS:
+                    if value <= 100:
                         print("Warnnig: max_concurrent_stream below 100 is not recomended")
-                    self.maxConcurrentStreams = Value
-                elif Identifier == SET.INITIAL_WINDOW_SIZE:
-                    if Value > MAX_WINDOW_SIZE:
+                    self.maxConcurrentStreams = value
+                elif identifier == SET.INITIAL_WINDOW_SIZE:
+                    if value > MAX_WINDOW_SIZE:
                         self.send(TYPE.GOAWAY, err = ERR.FLOW_CONTOROL_ERROR, debug = None)
                     else:
-                        self.windowSize = Value
-                elif Identifier == SET.MAX_FRAME_SIZE:
-                    if INITIAL_MAX_FRAME_SIZE <= Value  <= LIMIT_MAX_FRAME_SIZE:
-                        self.maxFrameSize = Value
+                        self.windowSize = value
+                elif identifier == SET.MAX_FRAME_SIZE:
+                    if INITIAL_MAX_FRAME_SIZE <= value  <= LIMIT_MAX_FRAME_SIZE:
+                        self.maxFrameSize = value
                     else:
                         self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-                elif Identifier == SET.MAX_HEADER_LIST_SIZE:
-                    self.maxHeaderListSize = Value # ??
+                elif identifier == SET.MAX_HEADER_LIST_SIZE:
+                    self.maxHeaderListSize = value # ??
                 else:
                     pass # must ignore
                 # must send ack
