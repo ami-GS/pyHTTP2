@@ -7,8 +7,8 @@ from pyHPACK.HPACK import encode, decode
 from pyHPACK.tables import Table
 
 class Connection(object):
-    def __init__(self, sock, addr):
-        self.sock = sock
+    def __init__(self, sock, addr, enable_tls):
+        self.setSocket(sock, enable_tls)
         self.addr = addr
         self.table = Table()
         self.streams = {}
@@ -22,16 +22,31 @@ class Connection(object):
         # temporaly using
         self.wireLenLimit = 24
 
+    def setSocket(self, sock, enable_tls):
+        self.sock = sock
+        if enable_tls:
+            self._send = sock.write
+            self._recv = sock.read
+        else:
+            self._send = sock.send
+            self._recv = sock.recv
+
+    def _send(self):
+        pass
+
+    def _recv(self):
+        pass
+
     def send(self, frameType, flag = FLAG.NO, streamId = 0, **kwargs):
         frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
-        self.sock.send(frame)
+        self._send(frame)
         # here?
         while len(self.streams[streamId].wire):
             if len(self.streams[streamId].wire) > self.wireLenLimit:
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.NO)
             else:
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
-            self.sock.send(frame)
+            self._send(frame)
 
     def parseData(self, data):
         Length, Type, Flag, sId = 0, '\x00', '\x00', 0 #here?
