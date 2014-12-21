@@ -9,7 +9,7 @@ def access(host, port):
     con = Client(host, port)
     con.notifyHTTP2()
     time.sleep(0.2)
-    con.send(TYPE.SETTINGS, ident=SET.NO, value = "")
+    con.send(TYPE.SETTINGS, ident=SETTINGS.NO, value = "")
     time.sleep(0.2)
     con.send(TYPE.HEADERS, FLAG.NO, 1, headers = [[":method", "GET"],
                                                   [":scheme", "http"],
@@ -29,9 +29,9 @@ def access(host, port):
     time.sleep(0.2)
     con.send(TYPE.WINDOW_UPDATE, streamId = 1, windowSizeIncrement = 10, R = 1)
     time.sleep(0.2)
-    con.send(TYPE.RST_STREAM, streamId = 1, err = ERR.NO_ERROR)
+    con.send(TYPE.RST_STREAM, streamId = 1, err = ERR_CODE.NO_ERROR)
     time.sleep(0.2)
-    con.send(TYPE.GOAWAY, err = ERR.NO_ERROR, debug = None)
+    con.send(TYPE.GOAWAY, err = ERR_CODE.NO_ERROR, debug = None)
 
 
 if __name__ == "__main__":

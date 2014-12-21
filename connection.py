@@ -13,10 +13,10 @@ class Connection(object):
         self.table = Table()
         self.streams = {}
         self.addStream(0)
-        self.enablePush = SET.INIT_VALUE[2]
-        self.maxConcurrentStreams = SET.INIT_VALUE[3]
-        self.maxFrameSize = SET.INIT_VALUE[5]
-        self.maxHeaderListSize = SET.INIT_VALUE[6]
+        self.enablePush = SETTINGS.INIT_VALUE[2]
+        self.maxConcurrentStreams = SETTINGS.INIT_VALUE[3]
+        self.maxFrameSize = SETTINGS.INIT_VALUE[5]
+        self.maxHeaderListSize = SETTINGS.INIT_VALUE[6]
         self.readyToPayload = False
         self.goAwayId = 0
         # temporaly using
@@ -57,34 +57,34 @@ class Connection(object):
 
         def _data(data):
             if sId == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-            if self.streams[sId].state == ST.CLOSED:
-                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR.PROTOCOL_ERROR)
-            if self.streams[sId].state != ST.OPEN or self.streams[sId].state != ST.HCLOSED_L:
-                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR.STREAM_CLOSED)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+            if self.streams[sId].state == STATE.CLOSED:
+                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.PROTOCOL_ERROR)
+            if self.streams[sId].state != STATE.OPEN or self.streams[sId].state != STATE.HCLOSED_L:
+                self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.STREAM_CLOSED)
             index = 0
             padLen = 0
             if Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 index = 1
                 if padLen > (len(data) - 1):
-                    self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                    self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             elif Flag == FLAG.END_STREAM:
-                if self.streams[sId].state == ST.OPEN:
-                    self.streams[sId].setState(ST.HCLOSED_R)
-                elif self.streams[sId].state == ST.HCLOSED_L:
-                    self.streams[sId].setState(ST.CLOSED)
+                if self.streams[sId].state == STATE.OPEN:
+                    self.streams[sId].setState(STATE.HCLOSED_R)
+                elif self.streams[sId].state == STATE.HCLOSED_L:
+                    self.streams[sId].setState(STATE.CLOSED)
                 #here should be refactoring
             content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
             print("DATA:%s" % (content))
 
         def _headers(data):
-            if self.streams[sId].state == ST.RESERVED_R:
-                    self.streams[sId].setState(ST.HCLOSED_L) # suspicious
+            if self.streams[sId].state == STATE.RESERVED_R:
+                    self.streams[sId].setState(STATE.HCLOSED_L) # suspicious
             else:
-                self.streams[sId].setState(ST.OPEN)
+                self.streams[sId].setState(STATE.OPEN)
             if sId == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
             index = 0
             if Flag == FLAG.END_HEADERS:
@@ -104,66 +104,66 @@ class Connection(object):
                 weight = upackHex(data[5])
                 index = 5
             elif Flag == FLAG.END_STREAM:
-                self.streams[sId].setState(ST.HCLOSED_R)
+                self.streams[sId].setState(STATE.HCLOSED_R)
             # Too long
             self.streams[sId].wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
 
         def _priority(data):
             if sId == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             E = upackHex(data[0]) & 0x80
             streamDependency = upackHex(data[:4]) & 0x7fffffff
             weight = upackHex(data[4])
 
         def _rst_stream(data):
-            if sId == 0 or self.streams[sId].state == ST.IDLE:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+            if sId == 0 or self.streams[sId].state == STATE.IDLE:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
-                self.streams[sId].setState(ST.CLOSED)
+                self.streams[sId].setState(STATE.CLOSED)
 
         def _settings(data):
             # TODO: here should be wrap by try: except: ?
             if sId != 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             if Flag == FLAG.ACK:
                 if Length != 0:
-                    self.send(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None)
+                    self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             elif Length:
                 identifier = upackHex(data[:2])
                 value = upackHex(data[2:6])
-                if identifier == SET.HEADER_TABLE_SIZE:
+                if identifier == SETTINGS.HEADER_TABLE_SIZE:
                     self.table.setMaxHeaderTableSize(value)
-                elif identifier == SET.ENABLE_PUSH:
+                elif identifier == SETTINGS.ENABLE_PUSH:
                     if value == 1 or value == 0:
                         self.enablePush = value
                     else:
-                        self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-                elif identifier == SET.MAX_CONCURRENT_STREAMS:
+                        self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+                elif identifier == SETTINGS.MAX_CONCURRENT_STREAMS:
                     if value <= 100:
                         print("Warnnig: max_concurrent_stream below 100 is not recomended")
                     self.maxConcurrentStreams = value
-                elif identifier == SET.INITIAL_WINDOW_SIZE:
+                elif identifier == SETTINGS.INITIAL_WINDOW_SIZE:
                     if value > MAX_WINDOW_SIZE:
-                        self.send(TYPE.GOAWAY, err = ERR.FLOW_CONTOROL_ERROR, debug = None)
+                        self.send(TYPE.GOAWAY, err = ERR_CODE.FLOW_CONTOROL_ERROR, debug = None)
                     else:
                         self.windowSize = value
-                elif identifier == SET.MAX_FRAME_SIZE:
+                elif identifier == SETTINGS.MAX_FRAME_SIZE:
                     if INITIAL_MAX_FRAME_SIZE <= value  <= LIMIT_MAX_FRAME_SIZE:
                         self.maxFrameSize = value
                     else:
-                        self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-                elif identifier == SET.MAX_HEADER_LIST_SIZE:
+                        self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+                elif identifier == SETTINGS.MAX_HEADER_LIST_SIZE:
                     self.maxHeaderListSize = value # ??
                 else:
                     pass # must ignore
                 # must send ack
-                self.send(TYPE.SETTINGS, FLAG.ACK, 0, ident=SET.NO, value = "")
+                self.send(TYPE.SETTINGSTINGS, FLAG.ACK, 0, ident=SETTINGS.NO, value = "")
 
         def _push_promise(data):
             if sId == 0 or self.enablePush == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
-            if self.streams[sId].state != ST.OPEN and self.streams[sId].state != ST.HCLOSED_L:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+            if self.streams[sId].state != STATE.OPEN and self.streams[sId].state != STATE.HCLOSED_L:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
             index = 0
             if Flag == FLAG.PADDED:
@@ -172,7 +172,7 @@ class Connection(object):
                 index = 1
             R = upackHex(data[index]) & 0x80
             promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
-            self.addStream(promisedId, ST.RESERVED_R)
+            self.addStream(promisedId, STATE.RESERVED_R)
             # TODO: here should be optimised
             self.streams[sId].wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
             if Flag == FLAG.END_HEADERS:
@@ -181,9 +181,9 @@ class Connection(object):
 
         def _ping(data):
             if Length != 8:
-                self.send(TYPE.GOAWAY, err = ERR.FRAME_SIZE_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             if sId != 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             if Flag != FLAG.ACK:
                 print("ping response !")
                 self.send(TYPE.PING, FLAG.ACK, 0, ping = data)
@@ -192,7 +192,7 @@ class Connection(object):
 
         def _goAway(data):
             if sId != 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             R = upackHex(data[0]) & 0x80
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
@@ -205,17 +205,17 @@ class Connection(object):
             R = upackHex(data[0]) & 0x80
             windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
             if windowSizeIncrement == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             elif windowSizeIncrement >  (1 << 31) - 1:
                 # is this correct ?
                 if sId == 0:
-                    self.send(TYPE.GOAWAY, err=ERR.FLOW_CONNECTION_ERROR)
+                    self.send(TYPE.GOAWAY, err=ERR_CODE.FLOW_CONNECTION_ERROR)
                 else:
-                    self.send(TYPE.RST_STREAM, streamId = sId, err=ERR.FLOW_CONNECTION_ERROR)
+                    self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.FLOW_CONNECTION_ERROR)
 
         def _continuation(data):
             if sId == 0:
-                self.send(TYPE.GOAWAY, err = ERR.PROTOCOL_ERROR, debug = None)
+                self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             self.streams[sId].wire += data
             if Flag == FLAG.END_HEADERS:
                 print(decode(hexlify(self.streams[sId].wire), self.table))
@@ -264,8 +264,8 @@ class Connection(object):
 
                     if not self.streams.has_key(sId):
                         self.addStream(sId) # this looks strange
-                    if self.streams[sId].state == ST.CLOSED and Type != TYPE.PRIORITY:
-                        self.send(TYPE.RST_STREAM, streamId = sId, err=ERR.STREAM_CLOSED)
+                    if self.streams[sId].state == STATE.CLOSED and Type != TYPE.PRIORITY:
+                        self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.STREAM_CLOSED)
                     #print(hexlify(data))
                     #print(Length, hexlify(Type), hexlify(Flag), sId, "set")
                     data = data[FRAME_HEADER_SIZE:]
@@ -277,5 +277,5 @@ class Connection(object):
     def setHeaders(self, headers):
         self.headers = headers
 
-    def addStream(self, stream, state = ST.IDLE):
+    def addStream(self, stream, state = STATE.IDLE):
         self.streams[stream] = Stream(stream, self, state)

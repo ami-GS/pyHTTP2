@@ -8,7 +8,7 @@ class Stream():
         self.sId = stream_id
         self.connection = connection
         self.state = state
-        self.windowSize = Settings.INIT_VALUE[4]
+        self.windowSize = SETTINGS.INIT_VALUE[4]
         self.wire = ""
 
     def setWindowSize(self, windowSize):
@@ -34,10 +34,10 @@ class Stream():
                 frame += packHex(kwargs["padLen"], 1)
                 padding += packHex(0, kwargs["padLen"])
             elif flag == FLAG.END_STREAM:
-                if self.state == ST.OPEN:
-                    self.setState(ST.HCLOSED_L)
-                elif self.state == ST.HCLOSED_R:
-                    self.setState(ST.CLOSED)
+                if self.state == STATE.OPEN:
+                    self.setState(STATE.HCLOSED_L)
+                elif self.state == STATE.HCLOSED_R:
+                    self.setState(STATE.CLOSED)
             frame += kwargs["data"] #TODO data length should be configured
 
             return frame + padding
@@ -50,9 +50,9 @@ class Stream():
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
                     flag == FLAG.END_HEADERS
-            if self.state == ST.RESERVED_L:
-                self.setState(ST.HCLOSED_R) # suspicious
-            self.setState(ST.OPEN) # here?
+            if self.state == STATE.RESERVED_L:
+                self.setState(STATE.HCLOSED_R) # suspicious
+            self.setState(STATE.OPEN) # here?
             if flag == FLAG.PADDED:
                 frame += packHex(kwargs["padLen"], 1) # Pad Length
                 padding = packHex(0, kwargs["padLen"])
@@ -63,9 +63,9 @@ class Stream():
                 frame += streamDependency
                 frame += packHex(kwargs["weight"], 1) # Weight
             elif flag == FLAG.END_HEADERS:
-                self.setState(ST.HCLOSED_L)
+                self.setState(STATE.HCLOSED_L)
             elif flag == FLAG.END_STREAM:
-                self.setState(ST.HCLOSED_L)
+                self.setState(STATE.HCLOSED_L)
 
             # TODO: wire len limit should be configured properly
             if len(self.wire) > self.connection.wireLenLimit:
@@ -85,7 +85,7 @@ class Stream():
             return streamDependency + weight
 
         def _rst_stream():
-            self.setState(ST.CLOSED)
+            self.setState(STATE.CLOSED)
             return packHex(kwargs["err"], 4)
 
         def _settings():
@@ -107,7 +107,7 @@ class Stream():
                     flag == FLAG.END_HEADERS
             # make new stream
             promisedId = packHex(kwargs["pushId"], 4)
-            self.connection.addStream(kwargs["pushId"], ST.RESERVED_L)
+            self.connection.addStream(kwargs["pushId"], STATE.RESERVED_L)
             if kwargs.has_key("R") and kwargs["R"]:
                 promisedId = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:]) + promisedId[1:]
 
