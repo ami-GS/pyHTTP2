@@ -5,7 +5,7 @@ FRAME_HEADER_SIZE = 9
 
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-class FrameType():
+class TYPE():
     DATA = "\x00"
     HEADERS = "\x01"
     PRIORITY = "\x02"
@@ -17,7 +17,7 @@ class FrameType():
     WINDOW_UPDATE = "\x08"
     CONTINUATION = "\x09"
 
-class BaseFlag():
+class FLAG():
     NO = "\x00"
     ACK = "\x01"
     END_STREAM = "\x01"
@@ -25,7 +25,7 @@ class BaseFlag():
     PADDED = "\x08"
     PRIORITY = "\x20"
     
-class Settings():
+class SETTINGS():
     NO = "\x00"
     HEADER_TABLE_SIZE = "\x01"
     ENABLE_PUSH = "\x02"
@@ -35,7 +35,7 @@ class Settings():
     MAX_HEADER_LIST_SIZE = "\x06"
     INIT_VALUE = [None, 4096, 1, -1, 65535, 65536, -1]
 
-class ErrorCode():
+class ERR_CODE():
     NO_ERROR = "\x00"
     PROTOCOL_ERROR = "\x01"
     INTERNAL_ERROR = "\x02"
@@ -50,7 +50,7 @@ class ErrorCode():
     ENHANCE_YOUR_CALM = "\x0b"
     INADEQUATE_SECURITY = "\x0c"
 
-class State():
+class STATE():
     IDLE = "\x00"
     RESERVED_L = "\x01"
     RESERVED_R = "\x02"
@@ -59,10 +59,4 @@ class State():
     HCLOSED_R = "\x05"
     CLOSED = "\x06"
 
-INITIAL_STREAM_STATE = {"state":State.IDLE, "header":[True,""],"windowSize":65535}
-
-TYPE = FrameType
-FLAG = BaseFlag
-ERR = ErrorCode
-ST = State
-SET = Settings
+INITIAL_STREAM_STATE = {"state":STATE.IDLE, "header":[True,""],"windowSize":65535}
