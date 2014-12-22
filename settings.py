@@ -49,6 +49,7 @@ class ERR_CODE():
     CONNECT_ERROR = "\x0a"
     ENHANCE_YOUR_CALM = "\x0b"
     INADEQUATE_SECURITY = "\x0c"
+    HTTP_1_1_REQUIRED = "\x0d"
 
 class STATE():
     IDLE = "\x00"

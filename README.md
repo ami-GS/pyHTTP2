@@ -1,7 +1,7 @@
 pyHTTP2
 =======
 
-Python implementation of HTTP2 [draft 14](http://tools.ietf.org/html/draft-ietf-httpbis-http2-14 "draft 14")
+Python implementation of HTTP2 [draft 16](http://tools.ietf.org/html/draft-ietf-httpbis-http2-16 "draft 16")
 
 ## Simple usage
 ```
