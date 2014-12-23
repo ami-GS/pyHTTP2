@@ -75,6 +75,7 @@ class Connection(object):
                 elif self.streams[sId].state == STATE.HCLOSED_L:
                     self.streams[sId].setState(STATE.CLOSED)
                 #here should be refactoring
+            # if padding != 0 then send protocol_error (MAY)
             content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
             print("DATA:%s" % (content))
 
@@ -111,11 +112,15 @@ class Connection(object):
         def _priority(data):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+            if Length != 5:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             E = upackHex(data[0]) & 0x80
             streamDependency = upackHex(data[:4]) & 0x7fffffff
             weight = upackHex(data[4])
 
         def _rst_stream(data):
+            if Length != 4:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             if sId == 0 or self.streams[sId].state == STATE.IDLE:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
@@ -128,7 +133,9 @@ class Connection(object):
             if Flag == FLAG.ACK:
                 if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            elif Length:
+            if Length % 6 != 0:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
+            elif:
                 identifier = upackHex(data[:2])
                 value = upackHex(data[2:6])
                 if identifier == SETTINGS.HEADER_TABLE_SIZE:
@@ -202,6 +209,8 @@ class Connection(object):
 
         def _window_update(data):
             # not yet complete
+            if Length != 4:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             R = upackHex(data[0]) & 0x80
             windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
             if windowSizeIncrement == 0:
