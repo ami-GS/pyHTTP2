@@ -130,12 +130,12 @@ class Connection(object):
             # TODO: here should be wrap by try: except: ?
             if sId != 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
+            if Length % 6 != 0:
+                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             if Flag == FLAG.ACK:
                 if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            if Length % 6 != 0:
-                self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            elif:
+            elif Length:
                 identifier = upackHex(data[:2])
                 value = upackHex(data[2:6])
                 if identifier == SETTINGS.HEADER_TABLE_SIZE:
