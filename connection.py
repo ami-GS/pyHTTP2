@@ -13,10 +13,10 @@ class Connection(object):
         self.table = Table()
         self.streams = {}
         self.addStream(0)
-        self.enablePush = SETTINGS.INIT_VALUE[2]
-        self.maxConcurrentStreams = SETTINGS.INIT_VALUE[3]
-        self.maxFrameSize = SETTINGS.INIT_VALUE[5]
-        self.maxHeaderListSize = SETTINGS.INIT_VALUE[6]
+        self.enablePush = SETTINGS.INIT_VALUE["enable_push"]
+        self.maxConcurrentStreams = SETTINGS.INIT_VALUE["concurrent_streams"]
+        self.maxFrameSize = SETTINGS.INIT_VALUE["frame_size"]
+        self.maxHeaderListSize = SETTINGS.INIT_VALUE["header_list_size"]
         self.readyToPayload = False
         self.goAwayId = 0
         # temporaly using

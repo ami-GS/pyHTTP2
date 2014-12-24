@@ -33,7 +33,8 @@ class SETTINGS():
     INITIAL_WINDOW_SIZE = "\x04"
     MAX_FRAME_SIZE = "\x05"
     MAX_HEADER_LIST_SIZE = "\x06"
-    INIT_VALUE = [None, 4096, 1, -1, 65535, 65536, -1]
+    INIT_VALUE = {"table_size": 4096, "enable_push": 1, "concurrent_streams": -1,
+                  "window_size": 65535, "frame_size": 16384, "header_list_size": -1}
 
 class ERR_CODE():
     NO_ERROR = "\x00"
