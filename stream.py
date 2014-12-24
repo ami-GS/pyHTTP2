@@ -24,8 +24,9 @@ class Stream():
         return self.wire
 
     def makeFrame(self, fType, flag, **kwargs):
+        self.flag = flag # temporaly using
         def _HTTP2Frame(length):
-            return packHex(length, 3) + packHex(fType, 1) + packHex(flag, 1) + packHex(self.sId, 4)
+            return packHex(length, 3) + packHex(fType, 1) + packHex(self.flag, 1) + packHex(self.sId, 4)
 
         def _data():
             frame = ""
@@ -49,7 +50,7 @@ class Stream():
                 self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
-                    flag == FLAG.END_HEADERS
+                    self.flag = FLAG.END_HEADERS
             if self.state == STATE.RESERVED_L:
                 self.setState(STATE.HCLOSED_R) # suspicious
             self.setState(STATE.OPEN) # here?
@@ -66,7 +67,6 @@ class Stream():
                 self.setState(STATE.HCLOSED_L)
             elif flag == FLAG.END_STREAM:
                 self.setState(STATE.HCLOSED_L)
-
             # TODO: wire len limit should be configured properly
             if len(self.wire) > self.connection.wireLenLimit:
                 frame += self.wire[:self.connection.wireLenLimit] + padding
@@ -140,7 +140,6 @@ class Stream():
             frame = self.wire[:self.connection.wireLenLimit]
             self.wire = self.wire[self.connection.wireLenLimit:]
             return frame
-
         if fType == TYPE.DATA:
             frame = _data() # TODO  manage stream_id
         elif fType == TYPE.HEADERS:
