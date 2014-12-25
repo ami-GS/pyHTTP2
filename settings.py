@@ -52,6 +52,39 @@ class ERR_CODE():
     INADEQUATE_SECURITY = "\x0c"
     HTTP_1_1_REQUIRED = "\x0d"
 
+    @staticmethod
+    def string(num):
+        if num == 0:
+            return "NO ERROR"
+        elif num == 1:
+            return "PROTOCOL ERROR"
+        elif num == 2:
+            return "INTERNAL ERROR"
+        elif num == 3:
+            return "FLOW CONTROL ERROR"
+        elif num == 4:
+            return "STREAM CLOSED"
+        elif num == 5:
+            return "SETTINGS TIMEOUT"
+        elif num == 6:
+            return "FRAME SIZE ERROR"
+        elif num == 7:
+            return "REFUSED STREAM"
+        elif num == 8:
+            return "CANCEL"
+        elif num == 9:
+            return "COMPRESSION ERROR"
+        elif num == 10:
+            return "CONNECT ERROR"
+        elif num == 11:
+            return "ENHANCE YOUR CALM"
+        elif num == 12:
+            return "INADEQUATE SECURITY"
+        elif num == 13:
+            return "HTTP 1.1 REQUIRED"
+        else:
+            return "WARNING: undefined eror code"
+
 class STATE():
     IDLE = "\x00"
     RESERVED_L = "\x01"
