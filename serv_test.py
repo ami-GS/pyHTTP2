@@ -5,7 +5,7 @@ import sys
 table = Table()
 
 def runServer(host, port):
-    con = Server(host, port)
+    con = Server(host, port, True)
     con.runServer()
 
 

@@ -7,7 +7,7 @@ from pyHPACK.HPACK import encode, decode
 from pyHPACK.tables import Table
 
 class Connection(object):
-    def __init__(self, sock, addr, enable_tls):
+    def __init__(self, sock, addr, enable_tls, debug):
         self.setSocket(sock, enable_tls)
         self.addr = addr
         self.table = Table()
@@ -21,6 +21,7 @@ class Connection(object):
         self.goAwayId = 0
         # temporaly using
         self.wireLenLimit = 24
+        self.debug = debug
 
     def setSocket(self, sock, enable_tls):
         self.sock = sock
@@ -124,6 +125,9 @@ class Connection(object):
             if sId == 0 or self.streams[sId].state == STATE.IDLE:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
+                num = upackHex(data)
+                if self.debug:
+                    print(ERR_CODE.string(num))
                 self.streams[sId].setState(STATE.CLOSED)
 
         def _settings(data):
@@ -203,6 +207,8 @@ class Connection(object):
             R = upackHex(data[0]) & 0x80
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
+            if self.debug:
+                print(ERR_CODE.string(errCode))
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
             self.goAwaysId = lastStreamID
