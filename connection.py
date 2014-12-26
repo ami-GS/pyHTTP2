@@ -246,7 +246,7 @@ class Connection(object):
                 #send settings (this may be empty)
                 data = data.lstrip(CONNECTION_PREFACE)
             else:
-                print(Length, hexlify(Type), hexlify(Flag), sId, self.readyToPayload)
+                print(Length, TYPE.string(Type), FLAG.string(Flag), sId, self.readyToPayload)
                 if self.readyToPayload:
                     if Type == TYPE.DATA:
                         _data(data[:Length])

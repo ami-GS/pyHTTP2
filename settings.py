@@ -17,6 +17,29 @@ class TYPE():
     WINDOW_UPDATE = "\x08"
     CONTINUATION = "\x09"
 
+    @classmethod
+    def string(cls, num):
+        if num == cls.DATA:
+            return "DATA"
+        if num == cls.HEADERS:
+            return "HEADERS"
+        if num == cls.PRIORITY:
+            return "PRIORITY"
+        if num == cls.RST_STREAM:
+            return "RST STREAM"
+        if num == cls.SETTINGS:
+            return "SETTINGS"
+        if num == cls.PUSH_PROMISE:
+            return "PUSH PROMISE"
+        if num == cls.PING:
+            return "PING"
+        if num == cls.GOAWAY:
+            return "GOAWAY"
+        if num == cls.WINDOW_UPDATE:
+            return "WINDOW UPDATE"
+        if num == cls.CONTINUATION:
+            return "CONTINUATION"
+
 class FLAG():
     NO = "\x00"
     ACK = "\x01"
@@ -24,6 +47,19 @@ class FLAG():
     END_HEADERS = "\x04"
     PADDED = "\x08"
     PRIORITY = "\x20"
+
+    @classmethod
+    def string(cls, num):
+        if num == cls.NO:
+            return "NO"
+        if num == cls.ACK:
+            return "ACK or END STREAM"
+        if num == cls.END_HEADERS:
+            return "END HEADERS"
+        if num == cls.PADDED:
+            return "PADDED"
+        if num == cls.PRIORITY:
+            return "PRIORITY"
     
 class SETTINGS():
     NO = "\x00"
