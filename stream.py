@@ -104,7 +104,7 @@ class Stream():
                 self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
-                    flag == FLAG.END_HEADERS
+                    self.flag = FLAG.END_HEADERS
             # make new stream
             promisedId = packHex(kwargs["pushId"], 4)
             self.connection.addStream(kwargs["pushId"], STATE.RESERVED_L)
@@ -140,6 +140,7 @@ class Stream():
             frame = self.wire[:self.connection.wireLenLimit]
             self.wire = self.wire[self.connection.wireLenLimit:]
             return frame
+
         if fType == TYPE.DATA:
             frame = _data() # TODO  manage stream_id
         elif fType == TYPE.HEADERS:
