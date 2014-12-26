@@ -61,7 +61,7 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             if self.streams[sId].state == STATE.CLOSED:
                 self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.PROTOCOL_ERROR)
-            if self.streams[sId].state != STATE.OPEN or self.streams[sId].state != STATE.HCLOSED_L:
+            if self.streams[sId].state != STATE.OPEN and self.streams[sId].state != STATE.HCLOSED_L:
                 self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.STREAM_CLOSED)
             index = 0
             padLen = 0
@@ -91,10 +91,8 @@ class Connection(object):
             index = 0
             if Flag == FLAG.END_HEADERS:
                 # tempral test
-                self.streams[sId].wire += data
-                print(decode(hexlify(self.streams[sId].wire), self.table))
-                self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
-                self.streams[sId].wire = ""
+                print(decode(hexlify(data), self.table))
+                self.send(TYPE.DATA, FLAG.END_STREAM, 1, data = "aiueoDATA!!!", padLen = 0)
                 return
             elif Flag == FLAG.PADDED:
                 padLen = upackHex(data[0])
@@ -127,7 +125,7 @@ class Connection(object):
             else:
                 num = upackHex(data)
                 if self.debug:
-                    print(ERR_CODE.string(num))
+                    print("RST STREAM: %s" % ERR_CODE.string(num))
                 self.streams[sId].setState(STATE.CLOSED)
 
         def _settings(data):
@@ -185,10 +183,11 @@ class Connection(object):
             promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
             self.addStream(promisedId, STATE.RESERVED_R)
             # TODO: here should be optimised
-            self.streams[sId].wire += data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
+            tmp = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
             if Flag == FLAG.END_HEADERS:
-                print(decode(hexlify(self.streams[sId].wire), self.table))
-                self.streams[sId].wire = ""
+                print(decode(hexlify(tmp), self.table))
+            else:
+                self.streams[sId].wire += tmp
 
         def _ping(data):
             if Length != 8:
@@ -208,7 +207,7 @@ class Connection(object):
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
             if self.debug:
-                print(ERR_CODE.string(errCode))
+                print("GO AWAY: %s" % ERR_CODE.string(errCode))
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
             self.goAwaysId = lastStreamID
@@ -276,7 +275,6 @@ class Connection(object):
                     self.readyToPayload = False
                 else:
                     Length, Type, Flag, sId = _parseFrameHeader(data)
-
                     if not self.streams.has_key(sId):
                         self.addStream(sId) # this looks strange
                     if self.streams[sId].state == STATE.CLOSED and Type != TYPE.PRIORITY:
