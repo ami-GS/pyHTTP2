@@ -63,9 +63,9 @@ class ERR_CODE():
         elif num == 3:
             return "FLOW CONTROL ERROR"
         elif num == 4:
-            return "STREAM CLOSED"
-        elif num == 5:
             return "SETTINGS TIMEOUT"
+        elif num == 5:
+            return "STREAM CLOSED"
         elif num == 6:
             return "FRAME SIZE ERROR"
         elif num == 7:
