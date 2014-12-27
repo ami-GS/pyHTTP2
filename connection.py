@@ -246,30 +246,34 @@ class Connection(object):
                 #send settings (this may be empty)
                 data = data.lstrip(CONNECTION_PREFACE)
             else:
-                print(Length, TYPE.string(Type), FLAG.string(Flag), sId, self.readyToPayload)
                 if self.readyToPayload:
-                    if Type == TYPE.DATA:
-                        _data(data[:Length])
-                    elif Type == TYPE.HEADERS:
-                        _headers(data[:Length])
-                    elif Type == TYPE.PRIORITY:
-                        _priority(data[:Length])
-                    elif Type == TYPE.RST_STREAM:
-                        _rst_stream(data[:Length])
-                    elif Type == TYPE.SETTINGS:
-                        _settings(data[:Length])
-                    elif Type == TYPE.PUSH_PROMISE:
-                        _push_promise(data[:Length])
-                    elif Type == TYPE.PING:
-                        _ping(data[:Length])
-                    elif Type == TYPE.GOAWAY:
-                        _goAway(data[:Length])
-                    elif Type == TYPE.WINDOW_UPDATE:
-                        _window_update(data[:Length])
-                    elif Type == TYPE.CONTINUATION:
-                        _continuation(data[:Length])
+                    print(Length, TYPE.string(Type), FLAG.string(Flag), sId, self.readyToPayload)
+                    if self.streams[sId].state == STATE.CLOSED and \
+                       Type != TYPE.PRIORITY and Type != TYPE.RST_STREAM:
+                        self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.STREAM_CLOSED)
                     else:
-                        print("err:undefined frame type",Type)
+                        if Type == TYPE.DATA:
+                            _data(data[:Length])
+                        elif Type == TYPE.HEADERS:
+                            _headers(data[:Length])
+                        elif Type == TYPE.PRIORITY:
+                            _priority(data[:Length])
+                        elif Type == TYPE.RST_STREAM:
+                            _rst_stream(data[:Length])
+                        elif Type == TYPE.SETTINGS:
+                            _settings(data[:Length])
+                        elif Type == TYPE.PUSH_PROMISE:
+                            _push_promise(data[:Length])
+                        elif Type == TYPE.PING:
+                            _ping(data[:Length])
+                        elif Type == TYPE.GOAWAY:
+                            _goAway(data[:Length])
+                        elif Type == TYPE.WINDOW_UPDATE:
+                            _window_update(data[:Length])
+                        elif Type == TYPE.CONTINUATION:
+                            _continuation(data[:Length])
+                        else:
+                            print("err:undefined frame type",Type)
                     data = data[Length:]
                     Length, Type, Flag, sId = 0, '\x00', '\x00', 0 #here?
                     self.readyToPayload = False
@@ -277,10 +281,6 @@ class Connection(object):
                     Length, Type, Flag, sId = _parseFrameHeader(data)
                     if not self.streams.has_key(sId):
                         self.addStream(sId) # this looks strange
-                    if self.streams[sId].state == STATE.CLOSED and Type != TYPE.PRIORITY:
-                        self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.STREAM_CLOSED)
-                    #print(hexlify(data))
-                    #print(Length, hexlify(Type), hexlify(Flag), sId, "set")
                     data = data[FRAME_HEADER_SIZE:]
                     self.readyToPayload = True
 
