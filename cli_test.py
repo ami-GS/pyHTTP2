@@ -11,26 +11,27 @@ def access(host, port):
     time.sleep(0.2)
     con.send(TYPE.SETTINGS, ident=SETTINGS.NO, value = "")
     time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.HEADERS, FLAG.NO, 1, headers = [[":method", "GET"],
                                                   [":scheme", "http"],
                                                   [":authority", "127.0.0.1"],
                                                   [":path", "/"]])
 
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.PUSH_PROMISE, FLAG.NO, 1, pushId = 3, headers = [[":method", "GET"],
                                                                    [":scheme", "http"],
                                                                    [":authority", "127.0.0.1"],
                                                                    [":path", "/"]])
     #con.send(TYPE.PRIORITY, FLAG.NO, 1, E = 1, depend = 1, weight = 1)
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.PING, ping = "hello!!")
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.WINDOW_UPDATE, streamId = 0, windowSizeIncrement = 10, R = 1)
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.WINDOW_UPDATE, streamId = 1, windowSizeIncrement = 10, R = 1)
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.RST_STREAM, streamId = 1, err = ERR_CODE.NO_ERROR)
-    time.sleep(0.2)
+    raw_input("next")
     con.send(TYPE.GOAWAY, err = ERR_CODE.NO_ERROR, debug = None)
 
 
