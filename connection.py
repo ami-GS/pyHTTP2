@@ -2,8 +2,7 @@ from settings import *
 from stream import Stream
 import socket
 from util import *
-from binascii import unhexlify
-from pyHPACK.HPACK import encode, decode
+from pyHPACK.HPACK import decode
 from pyHPACK.tables import Table
 
 class Connection(object):
@@ -283,12 +282,6 @@ class Connection(object):
                         self.addStream(sId) # this looks strange
                     data = data[FRAME_HEADER_SIZE:]
                     self.readyToPayload = True
-
-    def setTable(self, table):
-        self.table = table
-
-    def setHeaders(self, headers):
-        self.headers = headers
 
     def addStream(self, stream, state = STATE.IDLE):
         self.streams[stream] = Stream(stream, self, state)

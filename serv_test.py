@@ -1,8 +1,6 @@
 from server import Server
-from pyHPACK.tables import Table
 import sys
 
-table = Table()
 
 def runServer(host, port):
     con = Server(host, port, True)
