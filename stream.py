@@ -92,10 +92,39 @@ class Stream():
             return packHex(kwargs["err"], 4)
 
         def _settings():
-            if flag == FLAG.NO or flag == FLAG.ACK:
+            if flag == FLAG.ACK:
                 return ""
 
-            frame = packHex(kwargs["param"], 2) + packHex(kwargs["value"], 4)
+            param = kwargs["param"] #TODO: this is danger
+            value = kwargs["value"]
+            if param == SETTINGS.HEADER_TABLE_SIZE:
+                self.connection.setHeaderTableSize(value)
+            elif param == SETTINGS.ENABLE_PUSH:
+                # suspicious
+                if value == 1 or value == 0:
+                    self.connection.enablePush = value
+                else:
+                    pass #should emit warnnig
+            elif param == SETTINGS.MAX_CONCURRENT_STREAMS:
+                if value <= 100:
+                    print("Warnnig: max_concurrent_stream below 100 is not recomended")
+                self.connection.maxConcurrentStreams = value
+            elif param == SETTINGS.INITIAL_WINDOW_SIZE:
+                if value > MAX_WINDOW_SIZE:
+                    pass #should emit warnning
+                else:
+                    self.connection.initialWindowSize = value
+            elif param == SETTINGS.MAX_FRAME_SIZE:
+                if INITIAL_MAX_FRAME_SIZE <= value <= LIMIT_MAX_FRAME_SIZE:
+                    self.connection.maxFrameSize = value
+                else:
+                    pass #shoule emit warnning
+            elif param == SETTINGS.MAX_HEADER_LIST_SIZE:
+                self.connection.maxHeaderListSize = value # ??
+            else:
+                pass #should emit warnning
+
+            frame = packHex(param, 2) + packHex(value, 4)
             return frame
 
         def _push_promise():
