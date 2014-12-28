@@ -8,11 +8,14 @@ class Stream():
         self.sId = stream_id
         self.connection = connection
         self.state = state
-        self.windowSize = SETTINGS.INIT_VALUE["window_size"]
+        self.windowSize = self.connection.initialWindowSize
         self.wire = ""
 
     def setWindowSize(self, windowSize):
         self.windowSize = windowSize
+
+    def decreaseWindow(self, size):
+        self.windowSize -= size
 
     def setState(self, state):
         self.state = state
@@ -39,9 +42,9 @@ class Stream():
                     self.setState(STATE.HCLOSED_L)
                 elif self.state == STATE.HCLOSED_R:
                     self.setState(STATE.CLOSED)
-            frame += kwargs["data"] #TODO data length should be configured
-
-            return frame + padding
+            frame += kwargs["data"] + padding #TODO data length should be configured
+            self.decreaseWindow(len(frame) * 8)
+            return frame
 
         def _headers():
             frame = ""
@@ -132,6 +135,7 @@ class Stream():
 
         def _window_update():
             windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
+            self.setWindowSize(kwargs["windowSizeIncrement"])
             if kwargs.has_key("R") and kwargs["R"]:
                 windowSizeIncrement = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:]) + windowSizeIncrement[1:]
             return windowSizeIncrement

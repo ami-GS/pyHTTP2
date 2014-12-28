@@ -16,6 +16,7 @@ class Connection(object):
         self.maxConcurrentStreams = SETTINGS.INIT_VALUE["concurrent_streams"]
         self.maxFrameSize = SETTINGS.INIT_VALUE["frame_size"]
         self.maxHeaderListSize = SETTINGS.INIT_VALUE["header_list_size"]
+        self.initialWindowSize = SETTINGS.INIT_VALUE["window_size"]
         self.readyToPayload = False
         self.goAwayId = 0
         # temporaly using
@@ -77,6 +78,7 @@ class Connection(object):
                 #here should be refactoring
             # if padding != 0 then send protocol_error (MAY)
             content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
+            self.streams[sId].decreaseWindow(len(content) * 8)
             print("DATA:%s" % (content))
 
         def _headers(data):
@@ -154,7 +156,7 @@ class Connection(object):
                     if value > MAX_WINDOW_SIZE:
                         self.send(TYPE.GOAWAY, err = ERR_CODE.FLOW_CONTOROL_ERROR, debug = None)
                     else:
-                        self.windowSize = value
+                        self.initialWindowSize = value
                 elif identifier == SETTINGS.MAX_FRAME_SIZE:
                     if INITIAL_MAX_FRAME_SIZE <= value  <= LIMIT_MAX_FRAME_SIZE:
                         self.maxFrameSize = value
@@ -217,7 +219,7 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             R = upackHex(data[0]) & 0x80
             windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
-            if windowSizeIncrement == 0:
+            if windowSizeIncrement <= 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             elif windowSizeIncrement >  (1 << 31) - 1:
                 # is this correct ?
@@ -225,6 +227,8 @@ class Connection(object):
                     self.send(TYPE.GOAWAY, err=ERR_CODE.FLOW_CONNECTION_ERROR)
                 else:
                     self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.FLOW_CONNECTION_ERROR)
+            else:
+                self.streams[sId].setWindowSize(windowSizeIncrement)
 
         def _continuation(data):
             if sId == 0:
