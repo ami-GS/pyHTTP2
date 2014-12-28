@@ -24,7 +24,7 @@ class Client(Connection):
     def __receiver(self):
         try:
             while True:
-                data = self._recv(1024)
+                data = self._recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
                 self.parseData(data)
         except Exception as e:
             return
