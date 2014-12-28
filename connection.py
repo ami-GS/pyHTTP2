@@ -11,7 +11,6 @@ class Connection(object):
         self.addr = addr
         self.table = Table()
         self.streams = {}
-        self.addStream(0)
         self.enablePush = SETTINGS.INIT_VALUE["enable_push"]
         self.maxConcurrentStreams = SETTINGS.INIT_VALUE["concurrent_streams"]
         self.maxFrameSize = SETTINGS.INIT_VALUE["frame_size"]
@@ -19,6 +18,7 @@ class Connection(object):
         self.initialWindowSize = SETTINGS.INIT_VALUE["window_size"]
         self.readyToPayload = False
         self.goAwayId = 0
+        self.addStream(0)
         # temporaly using
         self.wireLenLimit = 24
         self.debug = debug
