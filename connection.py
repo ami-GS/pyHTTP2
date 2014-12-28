@@ -142,7 +142,7 @@ class Connection(object):
                 param = upackHex(data[:2])
                 value = upackHex(data[2:6])
                 if param == SETTINGS.HEADER_TABLE_SIZE:
-                    self.table.setMaxHeaderTableSize(value)
+                    self.setHeaderTableSize(value)
                 elif param == SETTINGS.ENABLE_PUSH:
                     if value == 1 or value == 0:
                         self.enablePush = value
@@ -167,7 +167,7 @@ class Connection(object):
                 else:
                     pass # must ignore
                 # must send ack
-                self.send(TYPE.SETTINGSTINGS, FLAG.ACK, 0, ident=SETTINGS.NO, value = "")
+                self.send(TYPE.SETTINGS, FLAG.ACK, 0, param=SETTINGS.NO, value = "")
 
         def _push_promise(data):
             if sId == 0 or self.enablePush == 0:
@@ -289,3 +289,6 @@ class Connection(object):
 
     def addStream(self, stream, state = STATE.IDLE):
         self.streams[stream] = Stream(stream, self, state)
+
+    def setHeaderTableSize(self, size):
+        self.table.setMaxHeaderTableSize(size)
