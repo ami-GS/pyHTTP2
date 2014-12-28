@@ -9,7 +9,7 @@ def access(host, port):
     con = Client(host, port, False, True)
     con.notifyHTTP2()
     time.sleep(0.2)
-    con.send(TYPE.SETTINGS, ident=SETTINGS.NO, value = "")
+    con.send(TYPE.SETTINGS, param=SETTINGS.NO, value = "")
     time.sleep(0.2)
     raw_input("next")
     con.send(TYPE.HEADERS, FLAG.NO, 1, headers = [[":method", "GET"],

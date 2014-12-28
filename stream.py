@@ -94,7 +94,8 @@ class Stream():
         def _settings():
             if flag == FLAG.NO or flag == FLAG.ACK:
                 return ""
-            frame = packHex(kwargs["identifier"], 2) + packHex(kwargs["value"], 4)
+
+            frame = packHex(kwargs["param"], 2) + packHex(kwargs["value"], 4)
             return frame
 
         def _push_promise():

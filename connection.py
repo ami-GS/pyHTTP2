@@ -139,30 +139,30 @@ class Connection(object):
                 if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             elif Length:
-                identifier = upackHex(data[:2])
+                param = upackHex(data[:2])
                 value = upackHex(data[2:6])
-                if identifier == SETTINGS.HEADER_TABLE_SIZE:
+                if param == SETTINGS.HEADER_TABLE_SIZE:
                     self.table.setMaxHeaderTableSize(value)
-                elif identifier == SETTINGS.ENABLE_PUSH:
+                elif param == SETTINGS.ENABLE_PUSH:
                     if value == 1 or value == 0:
                         self.enablePush = value
                     else:
                         self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-                elif identifier == SETTINGS.MAX_CONCURRENT_STREAMS:
+                elif param == SETTINGS.MAX_CONCURRENT_STREAMS:
                     if value <= 100:
                         print("Warnnig: max_concurrent_stream below 100 is not recomended")
                     self.maxConcurrentStreams = value
-                elif identifier == SETTINGS.INITIAL_WINDOW_SIZE:
+                elif param == SETTINGS.INITIAL_WINDOW_SIZE:
                     if value > MAX_WINDOW_SIZE:
                         self.send(TYPE.GOAWAY, err = ERR_CODE.FLOW_CONTOROL_ERROR, debug = None)
                     else:
                         self.initialWindowSize = value
-                elif identifier == SETTINGS.MAX_FRAME_SIZE:
+                elif param == SETTINGS.MAX_FRAME_SIZE:
                     if INITIAL_MAX_FRAME_SIZE <= value  <= LIMIT_MAX_FRAME_SIZE:
                         self.maxFrameSize = value
                     else:
                         self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-                elif identifier == SETTINGS.MAX_HEADER_LIST_SIZE:
+                elif param == SETTINGS.MAX_HEADER_LIST_SIZE:
                     self.maxHeaderListSize = value # ??
                 else:
                     pass # must ignore
