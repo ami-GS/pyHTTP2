@@ -5,14 +5,14 @@ from settings import *
 import ssl
 
 class Client(Connection):
-    def __init__(self, host, port, enable_tls = False, debug = False):
+    def __init__(self, addr, enable_tls = False, debug = False):
         if enable_tls:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock = ssl.wrap_socket(self.sock)
-            self.sock.connect((host, port))
+            self.sock.connect(addr)
         else:
-            self.sock = socket.create_connection((host, port), 5)
-        super(Client, self).__init__(self.sock, (host, port), enable_tls, debug)
+            self.sock = socket.create_connection(addr, 5)
+        super(Client, self).__init__(self.sock, addr, enable_tls, debug)
         self.lastId = 1
         self.addStream(self.lastId)
         self.t = Thread(target=self.__receiver)

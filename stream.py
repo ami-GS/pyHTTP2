@@ -8,7 +8,7 @@ class Stream():
         self.sId = stream_id
         self.connection = connection
         self.state = state
-        self.windowSize = self.connection.initialWindowSize
+        self.windowSize = connection.initialWindowSize
         self.wire = ""
 
     def setWindowSize(self, windowSize):

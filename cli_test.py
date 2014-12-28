@@ -6,7 +6,7 @@ from client import Client
 from threading import Thread
 
 def access(host, port):
-    con = Client(host, port, False, True)
+    con = Client((host, port), False, True)
     con.notifyHTTP2()
     time.sleep(0.2)
     con.send(TYPE.SETTINGS, param=SETTINGS.NO, value = "")
