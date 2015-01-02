@@ -124,9 +124,9 @@ class Connection(object):
             if sId == 0 or self.streams[sId].state == STATE.IDLE:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
-                num = upackHex(data)
+                errCode = upackHex(data)
                 if self.debug:
-                    print("RST STREAM: %s" % ERR_CODE.string(num))
+                    print("RST STREAM: %s" % ERR_CODE.string(data))
                 self.streams[sId].setState(STATE.CLOSED)
 
         def _settings(data):
@@ -208,7 +208,7 @@ class Connection(object):
             lastStreamID = upackHex(data[:4]) & 0x7fffffff
             errCode = upackHex(data[4:8])
             if self.debug:
-                print("GO AWAY: %s" % ERR_CODE.string(errCode))
+                print("GO AWAY: %s" % ERR_CODE.string(data[4:8]))
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
             self.goAwaysId = lastStreamID

@@ -88,38 +88,42 @@ class ERR_CODE():
     INADEQUATE_SECURITY = "\x0c"
     HTTP_1_1_REQUIRED = "\x0d"
 
-    @staticmethod
-    def string(num):
-        if num == 0:
-            return "NO ERROR"
-        elif num == 1:
-            return "PROTOCOL ERROR"
-        elif num == 2:
-            return "INTERNAL ERROR"
-        elif num == 3:
-            return "FLOW CONTROL ERROR"
-        elif num == 4:
-            return "SETTINGS TIMEOUT"
-        elif num == 5:
-            return "STREAM CLOSED"
-        elif num == 6:
-            return "FRAME SIZE ERROR"
-        elif num == 7:
-            return "REFUSED STREAM"
-        elif num == 8:
-            return "CANCEL"
-        elif num == 9:
-            return "COMPRESSION ERROR"
-        elif num == 10:
-            return "CONNECT ERROR"
-        elif num == 11:
-            return "ENHANCE YOUR CALM"
-        elif num == 12:
-            return "INADEQUATE SECURITY"
-        elif num == 13:
-            return "HTTP 1.1 REQUIRED"
+    @classmethod
+    def string(cls, num):
+        # 4 octet comes
+        if num[:3] == "\x00\x00\x00":
+            if num[-1] == cls.NO_ERROR:
+                return "NO ERROR"
+            elif num[-1] == cls.PROTOCOL_ERROR:
+                return "PROTOCOL ERROR"
+            elif num[-1] == cls.INTERNAL_ERROR:
+                return "INTERNAL ERROR"
+            elif num[-1] == cls.FLOW_CONTROL_ERROR:
+                return "FLOW CONTROL ERROR"
+            elif num[-1] == cls.SETTINGS_TIMEOUT:
+                return "SETTINGS TIMEOUT"
+            elif num[-1] == cls.STREAM_CLOSED:
+                return "STREAM CLOSED"
+            elif num[-1] == cls.FRAME_SIZE_ERROR:
+                return "FRAME SIZE ERROR"
+            elif num[-1] == cls.REFUSED_STREAM:
+                return "REFUSED STREAM"
+            elif num[-1] == cls.CANCEL:
+                return "CANCEL"
+            elif num[-1] == cls.COMPRESSION_ERROR:
+                return "COMPRESSION ERROR"
+            elif num[-1] == cls.CONNECT_ERROR:
+                return "CONNECT ERROR"
+            elif num[-1] == cls.ENHANCE_YOUR_CALM:
+                return "ENHANCE YOUR CALM"
+            elif num[-1] == cls.INADEQUATE_SECURITY:
+                return "INADEQUATE SECURITY"
+            elif num[-1] == cls.HTTP_1_1_REQUIRED:
+                return "HTTP 1.1 REQUIRED"
+            else:
+                return "WARNING: undefined eror code"
         else:
-            return "WARNING: undefined eror code"
+            return "WARNING: undefined error code"
 
 class STATE():
     IDLE = "\x00"
