@@ -5,10 +5,10 @@ Python implementation of HTTP2 [draft 16](http://tools.ietf.org/html/draft-ietf-
 
 ## Simple usage
 ```
-python serv_test.py 127.0.0.1 8080
+python serv_test.py <server ip> <server port>
 ```
 ```
-python cli_test.py 127.0.0.1 8080
+python cli_test.py <server ip> <server port>
 ```
 
 #### License
