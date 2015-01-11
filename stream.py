@@ -50,7 +50,7 @@ class Stream():
             frame = ""
             padding = ""
             if kwargs.has_key("headers"):
-                self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
+                self.wire = encode(kwargs["headers"], False, False, False, self.connection.table)
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
                     self.flag = FLAG.END_HEADERS
@@ -134,7 +134,7 @@ class Stream():
                 frame += packHex(kwargs["padLen"], 1)
                 padding = packHex(0, kwargs["padLen"])
             if kwargs.has_key("headers"):
-                self.wire = unhexlify(encode(kwargs["headers"], False, False, False, self.connection.table))
+                self.wire = encode(kwargs["headers"], False, False, False, self.connection.table)
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
                     self.flag = FLAG.END_HEADERS

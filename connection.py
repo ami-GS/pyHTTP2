@@ -92,7 +92,7 @@ class Connection(object):
             index = 0
             if Flag == FLAG.END_HEADERS:
                 # tempral test
-                print(decode(hexlify(data), self.table))
+                print(decode(data, self.table))
                 self.send(TYPE.DATA, FLAG.END_STREAM, 1, data = "aiueoDATA!!!", padLen = 0)
                 return
             elif Flag == FLAG.PADDED:
@@ -186,7 +186,7 @@ class Connection(object):
             # TODO: here should be optimised
             tmp = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
             if Flag == FLAG.END_HEADERS:
-                print(decode(hexlify(tmp), self.table))
+                print(decode(tmp, self.table))
             else:
                 self.streams[sId].wire += tmp
 
@@ -235,7 +235,7 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             self.streams[sId].wire += data
             if Flag == FLAG.END_HEADERS:
-                print(decode(hexlify(self.streams[sId].wire), self.table))
+                print(decode(self.streams[sId].wire, self.table))
                 # ready to response status should be made
                 # issue:  this cause sender print(decode(wire)) TODO: must be fixed
                 #self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
