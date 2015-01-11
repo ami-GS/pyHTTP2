@@ -3,7 +3,7 @@ import sys
 
 
 def runServer(host, port):
-    con = Server(host, port, True)
+    con = Server(host, port, False)
     con.runServer()
 
 
