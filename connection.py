@@ -54,7 +54,7 @@ class Connection(object):
         Length, Type, Flag, sId = 0, 0, 0, 0 #here?
 
         def _parseFrameHeader(data):
-            return upackHex(data[:3]), struct.unpack(">B", data[3:4])[0], struct.unpack(">B", data[4:5])[0], upackHex(data[5:9])
+            return struct.unpack(">I2BI", "\x00"+data[:9])
 
         def _data(data):
             if sId == 0:
