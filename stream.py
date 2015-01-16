@@ -1,6 +1,5 @@
 from settings import *
 from util import *
-from binascii import unhexlify
 from pyHPACK.HPACK import encode
 
 class Stream():
@@ -61,9 +60,10 @@ class Stream():
                 frame += packHex(kwargs["padLen"], 1) # Pad Length
                 padding = packHex(0, kwargs["padLen"])
             if flag&FLAG.PRIORITY == FLAG.PRIORITY:
-                streamDependency = packHex(kwargs["depend"], 4)
                 if kwargs.has_key("E") and kwargs["E"]:
-                    streamDependency = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:]) + streamDependency[1:]
+                    streamDependency = packHex(kwargs["depend"] | 0x80000000, 4)
+                else:
+                    streamDependency = packHex(kwargs["depend"], 4)
                 frame += streamDependency
                 frame += packHex(kwargs["weight"], 1) # Weight
             if self.flag&FLAG.END_HEADERS == FLAG.END_HEADERS:
@@ -80,10 +80,10 @@ class Stream():
             return frame
 
         def _priority():
-            streamDependency = packHex(kwargs["depend"], 4)
             if kwargs.has_key("E") and kwargs["E"]:
-                # TODO: must fix, not cool
-                streamDependency = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:]) + streamDependency[1:]
+                streamDependency = packHex(kwargs["depend"] | 0x80000000, 4)
+            else:
+                streamDependency = packHex(kwargs["depend"], 4)
             weight = packHex(kwargs["weight"], 1)
             return streamDependency + weight
 
@@ -139,10 +139,11 @@ class Stream():
                 if len(self.wire) <= self.connection.wireLenLimit:
                     self.flag |= FLAG.END_HEADERS
             # make new stream
-            promisedId = packHex(kwargs["pushId"], 4)
             self.connection.addStream(kwargs["pushId"], STATE.RESERVED_L)
             if kwargs.has_key("R") and kwargs["R"]:
-                promisedId = unhexlify(hex(upackHex(promisedId[0]) | 0x80)[2:]) + promisedId[1:]
+                promisedId = packHex(kwargs["pushId"] | 0x80000000, 4)
+            else:
+                promisedId = packHex(kwargs["pushId"], 4)
 
             if len(self.wire) > self.connection.wireLenLimit:
                 wire = self.wire[:self.connection.wireLenLimit] + padding
@@ -164,10 +165,12 @@ class Stream():
             return frame
 
         def _window_update():
-            windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
             self.setWindowSize(kwargs["windowSizeIncrement"])
             if kwargs.has_key("R") and kwargs["R"]:
-                windowSizeIncrement = unhexlify(hex(upackHex(windowSizeIncrement[0]) | 0x80)[2:]) + windowSizeIncrement[1:]
+                windowSizeIncrement = packHex(kwargs["windowSizeIncrement"] | 0x80000000, 4)
+            else:
+                windowSizeIncrement = packHex(kwargs["windowSizeIncrement"], 4)
+
             return windowSizeIncrement
 
         def _continuation():
