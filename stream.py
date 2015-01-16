@@ -1,3 +1,4 @@
+import struct
 from settings import *
 from util import *
 from pyHPACK.HPACK import encode
@@ -28,7 +29,7 @@ class Stream():
     def makeFrame(self, fType, flag, **kwargs):
         self.flag = flag # temporaly using
         def _HTTP2Frame(length):
-            return packHex(length, 3) + packHex(fType, 1) + packHex(self.flag, 1) + packHex(self.sId, 4)
+            return struct.pack(">I2BI", length, fType, self.flag, self.sId)[1:]
 
         def _data():
             frame = ""
