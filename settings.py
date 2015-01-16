@@ -41,12 +41,12 @@ class TYPE():
             return "CONTINUATION"
 
 class FLAG():
-    NO = "\x00"
-    ACK = "\x01"
-    END_STREAM = "\x01"
-    END_HEADERS = "\x04"
-    PADDED = "\x08"
-    PRIORITY = "\x20"
+    NO = 0x00
+    ACK = 0x01
+    END_STREAM = 0x01
+    END_HEADERS = 0x04
+    PADDED = 0x08
+    PRIORITY = 0x20
 
     @classmethod
     def string(cls, num):

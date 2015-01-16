@@ -34,10 +34,10 @@ class Stream():
         def _data():
             frame = ""
             padding = ""
-            if flag == FLAG.PADDED:
+            if flag&FLAG.PADDED == FLAG.PADDED:
                 frame += packHex(kwargs["padLen"], 1)
                 padding += packHex(0, kwargs["padLen"])
-            elif flag == FLAG.END_STREAM:
+            if flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 if self.state == STATE.OPEN:
                     self.setState(STATE.HCLOSED_L)
                 elif self.state == STATE.HCLOSED_R:
@@ -53,22 +53,22 @@ class Stream():
                 self.wire = encode(kwargs["headers"], False, False, False, self.connection.table)
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
-                    self.flag = FLAG.END_HEADERS
+                    self.flag |= FLAG.END_HEADERS
             if self.state == STATE.RESERVED_L:
                 self.setState(STATE.HCLOSED_R) # suspicious
             self.setState(STATE.OPEN) # here?
-            if flag == FLAG.PADDED:
+            if flag&FLAG.PADDED == FLAG.PADDED:
                 frame += packHex(kwargs["padLen"], 1) # Pad Length
                 padding = packHex(0, kwargs["padLen"])
-            elif flag == FLAG.PRIORITY:
+            if flag&FLAG.PRIORITY == FLAG.PRIORITY:
                 streamDependency = packHex(kwargs["depend"], 4)
                 if kwargs.has_key("E") and kwargs["E"]:
                     streamDependency = unhexlify(hex(upackHex(streamDependency[0]) | 0x80)[2:]) + streamDependency[1:]
                 frame += streamDependency
                 frame += packHex(kwargs["weight"], 1) # Weight
-            elif flag == FLAG.END_HEADERS:
+            if self.flag&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 self.setState(STATE.HCLOSED_L)
-            elif flag == FLAG.END_STREAM:
+            if flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 self.setState(STATE.HCLOSED_L)
             # TODO: wire len limit should be configured properly
             if len(self.wire) > self.connection.wireLenLimit:
@@ -130,14 +130,14 @@ class Stream():
         def _push_promise():
             frame = ""
             padding = ""
-            if flag == FLAG.PADDED:
+            if flag&FLAG.PADDED == FLAG.PADDED:
                 frame += packHex(kwargs["padLen"], 1)
                 padding = packHex(0, kwargs["padLen"])
             if kwargs.has_key("headers"):
                 self.wire = encode(kwargs["headers"], False, False, False, self.connection.table)
                 # not cool, should be optimised
                 if len(self.wire) <= self.connection.wireLenLimit:
-                    self.flag = FLAG.END_HEADERS
+                    self.flag |= FLAG.END_HEADERS
             # make new stream
             promisedId = packHex(kwargs["pushId"], 4)
             self.connection.addStream(kwargs["pushId"], STATE.RESERVED_L)

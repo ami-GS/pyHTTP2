@@ -1,6 +1,7 @@
 from settings import *
 from stream import Stream
 import socket
+import struct
 from util import *
 from pyHPACK.HPACK import decode
 from pyHPACK.tables import Table
@@ -54,7 +55,7 @@ class Connection(object):
 
         def _parseFrameHeader(data):
             return upackHex(data[:3]), data[3:4], \
-                data[4:5], upackHex(data[5:9])
+                struct.unpack(">B", data[4:5])[0], upackHex(data[5:9])
 
         def _data(data):
             if sId == 0:
@@ -65,12 +66,12 @@ class Connection(object):
                 self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.STREAM_CLOSED)
             index = 0
             padLen = 0
-            if Flag == FLAG.PADDED:
+            if Flag&FLAG.PADDED == FLAG.PADDED:
                 padLen = upackHex(data[0])
-                index = 1
+                index += 1
                 if padLen > (len(data) - 1):
                     self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-            elif Flag == FLAG.END_STREAM:
+            if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 if self.streams[sId].state == STATE.OPEN:
                     self.streams[sId].setState(STATE.HCLOSED_R)
                 elif self.streams[sId].state == STATE.HCLOSED_L:
@@ -90,21 +91,21 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
             index = 0
-            if Flag == FLAG.END_HEADERS:
+            if Flag&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 # tempral test
                 print(decode(data, self.table))
                 self.send(TYPE.DATA, FLAG.END_STREAM, 1, data = "aiueoDATA!!!", padLen = 0)
                 return
-            elif Flag == FLAG.PADDED:
+            if Flag&FLAG.PADDED == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
-                index = 1
-            elif Flag == FLAG.PRIORITY:
+                index += 1
+            if Flag&FLAG.PRIORITY == FLAG.PRIORITY:
                 E = upackHex(data[:4]) & 0x80
                 streamDepend = upackHex(data[:4]) & 0x7fffffff
                 weight = upackHex(data[5])
-                index = 5
-            elif Flag == FLAG.END_STREAM:
+                index += 5
+            if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 self.streams[sId].setState(STATE.HCLOSED_R)
             # Too long
             self.streams[sId].wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
@@ -176,16 +177,16 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
             index = 0
-            if Flag == FLAG.PADDED:
+            if Flag&FLAG.PADDED == FLAG.PADDED:
                 padLen = upackHex(data[0])
                 padding = data[-padLen:]
-                index = 1
+                index += 1
             R = upackHex(data[index]) & 0x80
             promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
             self.addStream(promisedId, STATE.RESERVED_R)
             # TODO: here should be optimised
             tmp = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
-            if Flag == FLAG.END_HEADERS:
+            if Flag&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 print(decode(tmp, self.table))
             else:
                 self.streams[sId].wire += tmp
@@ -278,7 +279,7 @@ class Connection(object):
                         else:
                             print("err:undefined frame type",Type)
                     data = data[Length:]
-                    Length, Type, Flag, sId = 0, '\x00', '\x00', 0 #here?
+                    Length, Type, Flag, sId = 0, '\x00', 0, 0 #here?
                     self.readyToPayload = False
                 else:
                     Length, Type, Flag, sId = _parseFrameHeader(data)
