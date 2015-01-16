@@ -6,16 +6,16 @@ FRAME_HEADER_SIZE = 9
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 class TYPE():
-    DATA = "\x00"
-    HEADERS = "\x01"
-    PRIORITY = "\x02"
-    RST_STREAM = "\x03"
-    SETTINGS = "\x04"
-    PUSH_PROMISE = "\x05"
-    PING = "\x06"
-    GOAWAY = "\x07"
-    WINDOW_UPDATE = "\x08"
-    CONTINUATION = "\x09"
+    DATA = 0x00
+    HEADERS = 0x01
+    PRIORITY = 0x02
+    RST_STREAM = 0x03
+    SETTINGS = 0x04
+    PUSH_PROMISE = 0x05
+    PING = 0x06
+    GOAWAY = 0x07
+    WINDOW_UPDATE = 0x08
+    CONTINUATION = 0x09
 
     @classmethod
     def string(cls, num):

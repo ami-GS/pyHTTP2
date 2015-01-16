@@ -51,11 +51,10 @@ class Connection(object):
             self._send(frame)
 
     def parseData(self, data):
-        Length, Type, Flag, sId = 0, '\x00', '\x00', 0 #here?
+        Length, Type, Flag, sId = 0, 0, 0, 0 #here?
 
         def _parseFrameHeader(data):
-            return upackHex(data[:3]), data[3:4], \
-                struct.unpack(">B", data[4:5])[0], upackHex(data[5:9])
+            return upackHex(data[:3]), struct.unpack(">B", data[3:4])[0], struct.unpack(">B", data[4:5])[0], upackHex(data[5:9])
 
         def _data(data):
             if sId == 0:
@@ -279,7 +278,7 @@ class Connection(object):
                         else:
                             print("err:undefined frame type",Type)
                     data = data[Length:]
-                    Length, Type, Flag, sId = 0, '\x00', 0, 0 #here?
+                    Length, Type, Flag, sId = 0, 0, 0, 0 #here?
                     self.readyToPayload = False
                 else:
                     Length, Type, Flag, sId = _parseFrameHeader(data)
