@@ -66,7 +66,7 @@ class Connection(object):
             index = 0
             padLen = 0
             if Flag&FLAG.PADDED == FLAG.PADDED:
-                padLen = upackHex(data[0])
+                padLen = struct.unpack(">B", data[0])[0]
                 index += 1
                 if padLen > (len(data) - 1):
                     self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
@@ -96,13 +96,13 @@ class Connection(object):
                 self.send(TYPE.DATA, FLAG.END_STREAM, 1, data = "aiueoDATA!!!", padLen = 0)
                 return
             if Flag&FLAG.PADDED == FLAG.PADDED:
-                padLen = upackHex(data[0])
+                padLen = struct.unpack(">B", data[0])[0]
                 padding = data[-padLen:]
                 index += 1
             if Flag&FLAG.PRIORITY == FLAG.PRIORITY:
-                E = upackHex(data[:4]) & 0x80
-                streamDepend = upackHex(data[:4]) & 0x7fffffff
-                weight = upackHex(data[5])
+                streamDependency, weight = struct.unpack(">IB", data[index:index+5])
+                E = streamDependency >> 31
+                streamDependency &= 0x7fffffff
                 index += 5
             if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 self.streams[sId].setState(STATE.HCLOSED_R)
@@ -114,9 +114,9 @@ class Connection(object):
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             if Length != 5:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            E = upackHex(data[0]) & 0x80
-            streamDependency = upackHex(data[:4]) & 0x7fffffff
-            weight = upackHex(data[4])
+            streamDependency, weight = struct.unpack(">IB", data[:5])
+            E = streamDependency >> 31
+            streamDependency &= 0x7fffffff
 
         def _rst_stream(data):
             if Length != 4:
@@ -124,7 +124,7 @@ class Connection(object):
             if sId == 0 or self.streams[sId].state == STATE.IDLE:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
-                errCode = upackHex(data)
+                errCode = struct.unpack(">I", data)[0]
                 if self.debug:
                     print("RST STREAM: %s" % ERR_CODE.string(data))
                 self.streams[sId].setState(STATE.CLOSED)
@@ -139,8 +139,7 @@ class Connection(object):
                 if Length != 0:
                     self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
             elif Length:
-                param = upackHex(data[:2])
-                value = upackHex(data[2:6])
+                param, value = struct.unpack(">HI", data[:6])
                 if param == SETTINGS.HEADER_TABLE_SIZE:
                     self.setHeaderTableSize(value)
                 elif param == SETTINGS.ENABLE_PUSH:
@@ -177,11 +176,12 @@ class Connection(object):
 
             index = 0
             if Flag&FLAG.PADDED == FLAG.PADDED:
-                padLen = upackHex(data[0])
+                padLen = struct.unpack(">B", data[0])[0]
                 padding = data[-padLen:]
                 index += 1
-            R = upackHex(data[index]) & 0x80
-            promisedId = upackHex(data[index:index + 4]) & 0x7fffffff
+            promisedId = struct.unpack(">I", data[index:index+4])[0]
+            R = promisedId >> 31
+            promisedId &= 0x7fffffff
             self.addStream(promisedId, STATE.RESERVED_R)
             # TODO: here should be optimised
             tmp = data[index+4: len(data) if Flag != FLAG.PADDED else -padLen]
@@ -204,9 +204,9 @@ class Connection(object):
         def _goAway(data):
             if sId != 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-            R = upackHex(data[0]) & 0x80
-            lastStreamID = upackHex(data[:4]) & 0x7fffffff
-            errCode = upackHex(data[4:8])
+            lastStreamID, errCode = struct.unpack(">2I", data[:8])
+            R = lastStreamID >> 31
+            lastStreamID &= 0x7fffffff
             if self.debug:
                 print("GO AWAY: %s" % ERR_CODE.string(data[4:8]))
             if len(data) > 8:
@@ -217,8 +217,9 @@ class Connection(object):
             # not yet complete
             if Length != 4:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            R = upackHex(data[0]) & 0x80
-            windowSizeIncrement = upackHex(data[:4]) & 0x7fffffff
+            windowSizeIncrement = struct.unpack(">I", data[:4])[0]
+            R = windowSizeIncrement >> 31
+            windowSizeIncrement &= 0x7fffffff
             if windowSizeIncrement <= 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             elif windowSizeIncrement >  (1 << 31) - 1:
