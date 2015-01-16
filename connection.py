@@ -225,9 +225,9 @@ class Connection(object):
             elif windowSizeIncrement >  (1 << 31) - 1:
                 # is this correct ?
                 if sId == 0:
-                    self.send(TYPE.GOAWAY, err=ERR_CODE.FLOW_CONNECTION_ERROR)
+                    self.send(TYPE.GOAWAY, err=ERR_CODE.FLOW_CONTROL_ERROR)
                 else:
-                    self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.FLOW_CONNECTION_ERROR)
+                    self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.FLOW_CONTROL_ERROR)
             else:
                 self.streams[sId].setWindowSize(windowSizeIncrement)
 
