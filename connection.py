@@ -208,7 +208,7 @@ class Connection(object):
             R = lastStreamID >> 31
             lastStreamID &= 0x7fffffff
             if self.debug:
-                print("GO AWAY: %s" % ERR_CODE.string(errCode)
+                print("GO AWAY: %s" % ERR_CODE.string(errCode))
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
             self.goAwaysId = lastStreamID

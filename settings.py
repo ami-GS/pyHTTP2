@@ -53,9 +53,9 @@ class FLAG():
     @classmethod
     def string(cls, num):
         val = ""
-        if num&cls.NO == cls.NO:
+        if num == cls.NO:
             val += "NO; "
-        if num&cls.ack == cls.ACK:
+        if num&cls.ACK == cls.ACK:
             val += "ACK or END STREAM; "
         if num&cls.END_HEADERS == cls.END_HEADERS:
             val += "END HEADERS; "
