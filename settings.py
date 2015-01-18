@@ -52,16 +52,18 @@ class FLAG():
 
     @classmethod
     def string(cls, num):
-        if num == cls.NO:
-            return "NO"
-        if num == cls.ACK:
-            return "ACK or END STREAM"
-        if num == cls.END_HEADERS:
-            return "END HEADERS"
-        if num == cls.PADDED:
-            return "PADDED"
-        if num == cls.PRIORITY:
-            return "PRIORITY"
+        val = ""
+        if num&cls.NO == cls.NO:
+            val += "NO; "
+        if num&cls.ack == cls.ACK:
+            val += "ACK or END STREAM; "
+        if num&cls.END_HEADERS == cls.END_HEADERS:
+            val += "END HEADERS; "
+        if num&cls.PADDED == cls.PADDED:
+            val += "PADDED; "
+        if num&cls.PRIORITY == cls.PRIORITY:
+            val += "PRIORITY; "
+        return val[:-2]
     
 class SETTINGS():
     NO = "\x00"
