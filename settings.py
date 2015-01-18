@@ -21,24 +21,26 @@ class TYPE():
     def string(cls, num):
         if num == cls.DATA:
             return "DATA"
-        if num == cls.HEADERS:
+        elif num == cls.HEADERS:
             return "HEADERS"
-        if num == cls.PRIORITY:
+        elif num == cls.PRIORITY:
             return "PRIORITY"
-        if num == cls.RST_STREAM:
+        elif num == cls.RST_STREAM:
             return "RST STREAM"
-        if num == cls.SETTINGS:
+        elif num == cls.SETTINGS:
             return "SETTINGS"
-        if num == cls.PUSH_PROMISE:
+        elif num == cls.PUSH_PROMISE:
             return "PUSH PROMISE"
-        if num == cls.PING:
+        elif num == cls.PING:
             return "PING"
-        if num == cls.GOAWAY:
+        elif num == cls.GOAWAY:
             return "GOAWAY"
-        if num == cls.WINDOW_UPDATE:
+        elif num == cls.WINDOW_UPDATE:
             return "WINDOW UPDATE"
-        if num == cls.CONTINUATION:
+        elif num == cls.CONTINUATION:
             return "CONTINUATION"
+        else:
+            return "WARNNING: undefined frame type"
 
 class FLAG():
     NO = 0x00
