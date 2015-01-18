@@ -50,6 +50,12 @@ class Connection(object):
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
             self._send(frame)
 
+    def setStreamState(self, ID, state):
+        self.streams[ID].setState(state)
+
+    def getStreamState(self, ID):
+        return self.streams[ID].getState()
+
     def parseData(self, data):
         Length, Type, Flag, sId = 0, 0, 0, 0 #here?
 
@@ -59,9 +65,11 @@ class Connection(object):
         def _data(data):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-            if self.streams[sId].state == STATE.CLOSED:
+
+            state = self.getStreamState(sId)
+            if state == STATE.CLOSED:
                 self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.PROTOCOL_ERROR)
-            if self.streams[sId].state != STATE.OPEN and self.streams[sId].state != STATE.HCLOSED_L:
+            if state != STATE.OPEN and state != STATE.HCLOSED_L:
                 self.send(TYPE.RST_STREAM, streamId = sId, err = ERR_CODE.STREAM_CLOSED)
             index = 0
             padLen = 0
@@ -71,10 +79,10 @@ class Connection(object):
                 if padLen > (len(data) - 1):
                     self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
-                if self.streams[sId].state == STATE.OPEN:
-                    self.streams[sId].setState(STATE.HCLOSED_R)
-                elif self.streams[sId].state == STATE.HCLOSED_L:
-                    self.streams[sId].setState(STATE.CLOSED)
+                if state == STATE.OPEN:
+                    self.setStreamState(sId, STATE.HCLOSED_R)
+                elif state == STATE.HCLOSED_L:
+                    self.setStreamState(sId, STATE.CLOSED)
                 #here should be refactoring
             # if padding != 0 then send protocol_error (MAY)
             content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
@@ -82,10 +90,10 @@ class Connection(object):
             print("DATA:%s" % (content))
 
         def _headers(data):
-            if self.streams[sId].state == STATE.RESERVED_R:
-                    self.streams[sId].setState(STATE.HCLOSED_L) # suspicious
+            if self.getStreamState(sId) == STATE.RESERVED_R:
+                    self.setStreamState(sId, STATE.HCLOSED_L) # suspicious
             else:
-                self.streams[sId].setState(STATE.OPEN)
+                self.setStreamState(sId, STATE.OPEN)
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
@@ -105,7 +113,7 @@ class Connection(object):
                 streamDependency &= 0x7fffffff
                 index += 5
             if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
-                self.streams[sId].setState(STATE.HCLOSED_R)
+                self.setStreamState(sId, STATE.HCLOSED_R)
             # Too long
             self.streams[sId].wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
 
@@ -121,13 +129,13 @@ class Connection(object):
         def _rst_stream(data):
             if Length != 4:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.FRAME_SIZE_ERROR, debug = None)
-            if sId == 0 or self.streams[sId].state == STATE.IDLE:
+            if sId == 0 or self.getStreamState(sId) == STATE.IDLE:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
             else:
                 errCode = struct.unpack(">I", data)[0]
                 if self.debug:
                     print("RST STREAM: %s" % ERR_CODE.string(errCode))
-                self.streams[sId].setState(STATE.CLOSED)
+                self.setStreamState(sId, STATE.CLOSED)
 
         def _settings(data):
             # TODO: here should be wrap by try: except: ?
@@ -171,7 +179,7 @@ class Connection(object):
         def _push_promise(data):
             if sId == 0 or self.enablePush == 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-            if self.streams[sId].state != STATE.OPEN and self.streams[sId].state != STATE.HCLOSED_L:
+            if self.getStreamState(sId) != STATE.OPEN and self.getStreamState(sId) != STATE.HCLOSED_L:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
 
             index = 0
@@ -251,8 +259,9 @@ class Connection(object):
                 data = data.lstrip(CONNECTION_PREFACE)
             else:
                 if self.readyToPayload:
-                    print(Length, TYPE.string(Type), FLAG.string(Flag), sId, self.readyToPayload)
-                    if self.streams[sId].state == STATE.CLOSED and \
+                    state = self.getStreamState(sId)
+                    print(Length, TYPE.string(Type), FLAG.string(Flag), sId,  STATE.string(state))
+                    if state == STATE.CLOSED and \
                        Type != TYPE.PRIORITY and Type != TYPE.RST_STREAM:
                         self.send(TYPE.RST_STREAM, streamId = sId, err=ERR_CODE.STREAM_CLOSED)
                     else:

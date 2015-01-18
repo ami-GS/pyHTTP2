@@ -17,6 +17,9 @@ class Stream():
     def decreaseWindow(self, size):
         self.windowSize -= size
 
+    def getState(self):
+        return self.state
+
     def setState(self, state):
         self.state = state
 
