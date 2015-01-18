@@ -126,7 +126,7 @@ class Connection(object):
             else:
                 errCode = struct.unpack(">I", data)[0]
                 if self.debug:
-                    print("RST STREAM: %s" % ERR_CODE.string(data))
+                    print("RST STREAM: %s" % ERR_CODE.string(errCode))
                 self.streams[sId].setState(STATE.CLOSED)
 
         def _settings(data):
@@ -208,7 +208,7 @@ class Connection(object):
             R = lastStreamID >> 31
             lastStreamID &= 0x7fffffff
             if self.debug:
-                print("GO AWAY: %s" % ERR_CODE.string(data[4:8]))
+                print("GO AWAY: %s" % ERR_CODE.string(errCode)
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
             self.goAwaysId = lastStreamID
