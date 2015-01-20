@@ -23,6 +23,9 @@ class Stream():
     def setState(self, state):
         self.state = state
 
+    def initWire(self):
+        self.wire = ""
+
     def appendWire(self, wire):
         self.wire += wire
 
@@ -80,7 +83,7 @@ class Stream():
                 self.wire = self.wire[self.connection.wireLenLimit:]
             else:
                 frame += self.wire + padding
-                self.wire = ""
+                self.initWire()
             return frame
 
         def _priority():
@@ -154,7 +157,7 @@ class Stream():
                 self.wire = self.wire[self.connection.wireLenLimit:]
             else:
                 wire = self.wire + padding
-                self.wire = ""
+                self.initWire()
 
             return frame + promisedId + wire
 
