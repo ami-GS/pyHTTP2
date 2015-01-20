@@ -43,8 +43,8 @@ class Connection(object):
         frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
         self._send(frame)
         # here?
-        while len(self.streams[streamId].wire):
-            if len(self.streams[streamId].wire) > self.wireLenLimit:
+        while len(self.streams[streamId].getWire()):
+            if len(self.streams[streamId].getWire()) > self.wireLenLimit:
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.NO)
             else:
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
@@ -115,7 +115,7 @@ class Connection(object):
             if Flag&FLAG.END_STREAM == FLAG.END_STREAM:
                 self.setStreamState(sId, STATE.HCLOSED_R)
             # Too long
-            self.streams[sId].wire += data[index: len(data) if Flag != FLAG.PADDED else -padLen]
+            self.streams[sId].appendWire(data[index: len(data) if Flag != FLAG.PADDED else -padLen])
 
         def _priority(data):
             if sId == 0:
@@ -196,7 +196,7 @@ class Connection(object):
             if Flag&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 print(decode(tmp, self.table))
             else:
-                self.streams[sId].wire += tmp
+                self.streams[sId].appendWire(tmp)
 
         def _ping(data):
             if Length != 8:
@@ -242,13 +242,13 @@ class Connection(object):
         def _continuation(data):
             if sId == 0:
                 self.send(TYPE.GOAWAY, err = ERR_CODE.PROTOCOL_ERROR, debug = None)
-            self.streams[sId].wire += data
+            self.streams[sId].appendWire(data)
             if Flag == FLAG.END_HEADERS:
-                print(decode(self.streams[sId].wire, self.table))
+                print(decode(self.streams[sId].getWire(), self.table))
                 # ready to response status should be made
                 # issue:  this cause sender print(decode(wire)) TODO: must be fixed
                 #self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
-                self.streams[sId].wire = ""
+                self.streams[sId].initWire()
 
         if self.goAwayId and self.goAwayId < sId:
             # must ignore
