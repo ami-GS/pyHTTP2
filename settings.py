@@ -63,7 +63,7 @@ class FLAG():
             val += "PADDED; "
         if num&cls.PRIORITY == cls.PRIORITY:
             val += "PRIORITY; "
-        return val[:-2]
+        return val[:-2] if val else "WARNNING: undefined flag"
     
 class SETTINGS():
     NO = 0x00
@@ -92,6 +92,8 @@ class SETTINGS():
             return "MAX FRAME SIZE"
         elif num == cls.MAX_HEADER_LIST_SIZE:
             return "MAX HEADER LIST SIZE"
+        else:
+            return "WARNNING: undefined setting code"
 
 class ERR_CODE():
     NO_ERROR = 0x00
@@ -167,6 +169,8 @@ class STATE():
             return "half closed (remote)"
         elif num == cls.CLOSED:
             return "closed"
+        else:
+            return "WARNNING: undefined state"
 
 
 INITIAL_STREAM_STATE = {"state":STATE.IDLE, "header":[True,""],"windowSize":65535}
