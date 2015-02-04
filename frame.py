@@ -3,36 +3,36 @@ from util import *
 from settings import *
 
 def getFrame(data):
-    #length, frameType, flgas, streamID = Http2Header.parse(data[:9])
+    header = Http2Header.getFrame(data[:9])
 
-    if frameType == TYPE.DATA:
-        frame = Data.getFrame(data)
-    elif frameType == TYPE.HEADERS:
-        frame = Headers.getFrame(data)
-    elif frameType == TYPE.PRIORITY:
-        frame = Priority.getFrame(data)
-    elif frameType == TYPE.RST_STREAM:
-        frame = RstStream.getFrame(data)
-    elif frameType == TYPE.SETTINGS:
-        frame = Settings.getFrame(data)
-    elif frameType == TYPE.PUSH_PROMISE:
-        frame = PushPromise.getFrame(data)
-    elif frameType == TYPE.PING:
-        frame = Ping.getFrame(data)
-    elif frameType == TYPE.GOAWAY:
-        frame = Goaway.getFrame(data)
-    elif frameType == TYPE.WINDOW_UPDATE:
-        frame = WindowUpdate.getFrame(data)
-    elif frameType == TYPE.CONTINUATION:
-        frame = Continuation.getFrame(data)
+    if header.frame == TYPE.DATA:
+        frame = Data.getFrame(data[9:])
+    elif header.frame == TYPE.HEADERS:
+        frame = Headers.getFrame(data[9:])
+    elif header.frame == TYPE.PRIORITY:
+        frame = Priority.getFrame(data[9:])
+    elif header.frame == TYPE.RST_STREAM:
+        frame = RstStream.getFrame(data[9:])
+    elif header.frame == TYPE.SETTINGS:
+        frame = Settings.getFrame(data[9:])
+    elif header.frame == TYPE.PUSH_PROMISE:
+        frame = PushPromise.getFrame(data[9:])
+    elif header.frame == TYPE.PING:
+        frame = Ping.getFrame(data[9:])
+    elif header.frame == TYPE.GOAWAY:
+        frame = Goaway.getFrame(data[9:])
+    elif header.frame == TYPE.WINDOW_UPDATE:
+        frame = WindowUpdate.getFrame(data[9:])
+    elif header.frame == TYPE.CONTINUATION:
+        frame = Continuation.getFrame(data[9:])
 
-        
+    header.setLength(len(frame.wire))
+    frame.addHttp2Header(header)
 
     return frame
 
 class Http2Header():
     def __init__(self, frame, flags, streamID, parsing):
-        #self.length = length
         self.frame = frame
         self.flags = flags
         self.streamID = streamID
@@ -55,15 +55,11 @@ class Http2Header():
 
 
 class Data():
-    def __init__(self, data = "", padLen = 0, flags = "", streamID = -1,  h2Header = None):
+    def __init__(self, data = "", padLen = 0, parsing = False):
         self.data = data
         self.padLen = padLen
-        if h2Header:
-            self.header = h2Header
-        else:
-            self.header = Http2Header(TYPE.DATA, flags, streamID)
+        if not parsing:
             self._makeWire()
-        self.header.setLength(len(self.wire))
 
     def _makeWire(self):
         self.wire = ""
@@ -76,14 +72,15 @@ class Data():
     def getWire(self):
         return super(Data, self).getWire() + self.wire
 
+    def addHeader(self, h2Header):
+        self.header = h2Header
+
     @staticmethod
     def getFrame(data):
-        headerFrame =  Http2Header.getFrame(data[:9])
-        data = data[9:]
         index = 0
         padLen = 0
         if flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct.unpack(">B", data[0])[0]
             index += 1
         content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-        return Data(content, padLen, h2Header = headerFrame)
+        return Data(content, padLen, True)
