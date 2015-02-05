@@ -69,9 +69,6 @@ class Data():
             padding += packHex(0, self.padLen)
         self.wire += self.data + padding
 
-    def getWire(self):
-        return super(Data, self).getWire() + self.wire
-
     def addHeader(self, h2Header):
         self.header = h2Header
 
