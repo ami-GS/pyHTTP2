@@ -84,3 +84,28 @@ class Data():
             index += 1
         content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
         return Data(content, padLen, True)
+
+
+class Goaway():
+    def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", parsing = False):
+        self.lastID = lastID
+        self.errorNum = errorNum
+        self.debugString = debugString
+        if not parsing:
+            self._makeWire()
+
+    def _makeWire(self):
+        self.wire = packHex(self.lastID, 4)
+        self.wire += packHex(self.errorNum, 4)
+        self.wire += self.debugString
+
+    def addHeader(self, h2Header):
+        self.header = h2Header
+
+    @staticmethod
+    def getFrame(data):
+        lastID, errorNum = struct.unpack(">2I", data[:8])
+        R = lastID >> 31
+        lastID &= 0x7fffffff
+        debugString = upackHex(data[8:])
+        return Goaway(lastID, errorNum, debugString, True)
