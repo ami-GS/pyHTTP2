@@ -6,28 +6,26 @@ def getFrame(data):
     header = Http2Header.getFrame(data[:9])
 
     if header.frame == TYPE.DATA:
-        frame = Data.getFrame(data[9:])
+        frame = Data.getFrame(header, data[9:])
     elif header.frame == TYPE.HEADERS:
-        frame = Headers.getFrame(data[9:])
+        frame = Headers.getFrame(header, data[9:])
     elif header.frame == TYPE.PRIORITY:
-        frame = Priority.getFrame(data[9:])
+        frame = Priority.getFrame(header, data[9:])
     elif header.frame == TYPE.RST_STREAM:
-        frame = RstStream.getFrame(data[9:])
+        frame = RstStream.getFrame(header, data[9:])
     elif header.frame == TYPE.SETTINGS:
-        frame = Settings.getFrame(data[9:])
+        frame = Settings.getFrame(header, data[9:])
     elif header.frame == TYPE.PUSH_PROMISE:
-        frame = PushPromise.getFrame(data[9:])
+        frame = PushPromise.getFrame(header, data[9:])
     elif header.frame == TYPE.PING:
-        frame = Ping.getFrame(data[9:])
+        frame = Ping.getFrame(header, data[9:])
     elif header.frame == TYPE.GOAWAY:
-        frame = Goaway.getFrame(data[9:])
+        frame = Goaway.getFrame(header, data[9:])
     elif header.frame == TYPE.WINDOW_UPDATE:
-        frame = WindowUpdate.getFrame(data[9:])
+        frame = WindowUpdate.getFrame(header, data[9:])
     elif header.frame == TYPE.CONTINUATION:
-        frame = Continuation.getFrame(data[9:])
+        frame = Continuation.getFrame(header, data[9:])
 
-    header.setLength(len(frame.wire))
-    frame.addHttp2Header(header)
 
     return frame
 
@@ -55,11 +53,15 @@ class Http2Header():
 
 
 class Data():
-    def __init__(self, data = "", padLen = 0, parsing = False):
+    def __init__(self, flags, streamID, data = "", padLen = 0, header = None):
         self.data = data
         self.padLen = padLen
-        if not parsing:
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.DATA, flags, streamID)
             self._makeWire()
+            self.header.setLength(len(self.wire))
 
     def _makeWire(self):
         self.wire = ""
@@ -69,27 +71,28 @@ class Data():
             padding += packHex(0, self.padLen)
         self.wire += self.data + padding
 
-    def addHeader(self, h2Header):
-        self.header = h2Header
-
     @staticmethod
-    def getFrame(data):
+    def getFrame(header, data):
         index = 0
         padLen = 0
-        if flags&FLAG.PADDED == FLAG.PADDED:
+        if header.flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct.unpack(">B", data[0])[0]
             index += 1
         content = data[index: len(data) if Flag != FLAG.PADDED else -padLen]
-        return Data(content, padLen, True)
+        return Data(None, None, content, padLen, header)
 
 
 class Goaway():
-    def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", parsing = False):
+    def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
         self.errorNum = errorNum
         self.debugString = debugString
-        if not parsing:
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.GOAWAY, 0, 0)
             self._makeWire()
+            self.header.setLength(len(self.wire))
 
     def _makeWire(self):
         self.wire = packHex(self.lastID, 4)
@@ -100,9 +103,9 @@ class Goaway():
         self.header = h2Header
 
     @staticmethod
-    def getFrame(data):
+    def getFrame(header, data):
         lastID, errorNum = struct.unpack(">2I", data[:8])
         R = lastID >> 31
         lastID &= 0x7fffffff
         debugString = upackHex(data[8:])
-        return Goaway(lastID, errorNum, debugString, True)
+        return Goaway(lastID, errorNum, debugString, header)
