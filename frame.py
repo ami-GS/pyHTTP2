@@ -82,6 +82,67 @@ class Data():
         return Data(None, None, content, padLen, header)
 
 
+
+class Headers():
+    def __init__(self, flags, streamID, headers, table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, header = None):
+        self.headers = headers
+        self.padLen = padLen
+        if E:
+            self.streamDependency = streamDependency | 0x80000000
+        else:
+            self.streamDependency = streamDependency
+        self.weight = weight
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.HEADERS, flgas, streamID)
+            self._makeWire(table)
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self, table):
+        padding = ""
+        self.wire = encode(headers, False, False, False, table)
+        if self.header.flags&FLAG.PADDED == FLAG.PADDED:
+            self.wire += packHex(self.padLen, 1)
+            padding += packHex(0, self.padLen)
+        if self.header.flags&FLAG.PRIORITY == FLAG.PRIORITY:
+            self.wire += self.streamDependency
+            self.wire += packHex(self.weight, 1)
+        if self.header.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            #set state half closed local
+            pass
+        if self.header.flags&FLAG.END_STREAM == FLAG.END_STREAM:
+            #set state half closed local
+            pass
+        self.wire += padding
+
+    @staticmethod
+    def getFrame(header, data, table):
+        if header.streamID == 0:
+            #send error here?
+            pass
+
+        index = 0
+        if header.flags&FLAG.END_HEADERS = FLAG.END_HEADERS:
+            print(decode(data, stable))
+            #return DATA
+            return
+        if header.flags&FLAG.PADDED == FLAG.PADDED:
+            padLen = struct,unpack(">B", data[0])[0]
+            padding = data[-padLen:]
+            index += 1
+        if header.flags&FLAG.PRIORITY == FLAG.PRIORITY:
+            streamDependency, weight = struct.unpack(">IB", data[index:index+5])
+            E = streamDependenct >> 31
+            streamDependency &= 0x7fffffff
+            index += 5
+        if header.flags&FLAG.END_STREAM == FLAG.END_STREAM:
+            #set state half closed remote
+            pass
+
+        #append wire if not a END_HEADERS flag
+
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
