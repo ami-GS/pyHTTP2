@@ -99,9 +99,6 @@ class Goaway():
         self.wire += packHex(self.errorNum, 4)
         self.wire += self.debugString
 
-    def addHeader(self, h2Header):
-        self.header = h2Header
-
     @staticmethod
     def getFrame(header, data):
         lastID, errorNum = struct.unpack(">2I", data[:8])
