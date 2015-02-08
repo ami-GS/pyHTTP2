@@ -84,14 +84,11 @@ class Data():
 
 
 class Headers():
-    def __init__(self, flags, streamID, headers, table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, header = None):
+    def __init__(self, flags, streamID, headers, padLen = 0, E = 0, streamDependency = 0, weight = 0table = None, header = None):
         self.headers = headers
         self.padLen = padLen
-        if E:
-            self.streamDependency = streamDependency | 0x80000000
-        else:
-            self.streamDependency = streamDependency
-        self.weight = weight
+        self.E = E
+        self.streamDependency = streamDependency
         if header:
             self.header = header
         else:
@@ -106,7 +103,10 @@ class Headers():
             self.wire += packHex(self.padLen, 1)
             padding += packHex(0, self.padLen)
         if self.header.flags&FLAG.PRIORITY == FLAG.PRIORITY:
-            self.wire += self.streamDependency
+            if self.E:
+                self.wire += packHex(self.streamDependency | 0x80000000, 4)
+            else:
+                self.wire += packHex(self.streamDependency, 4)
             self.wire += packHex(self.weight, 1)
         if self.header.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #set state half closed local
@@ -123,10 +123,13 @@ class Headers():
             pass
 
         index = 0
+        padLen = 0
+        E = 0
+        streamDependency = 0
+        weight = 0
         if header.flags&FLAG.END_HEADERS = FLAG.END_HEADERS:
-            print(decode(data, stable))
+            headers = decode(data, table)
             #return DATA
-            return
         if header.flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct,unpack(">B", data[0])[0]
             padding = data[-padLen:]
@@ -141,6 +144,7 @@ class Headers():
             pass
 
         #append wire if not a END_HEADERS flag
+        return Headers(None, None, headers, padLen, E, streamDependency, weight, None, header)
 
 
 class Goaway():
