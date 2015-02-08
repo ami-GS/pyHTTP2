@@ -147,6 +147,35 @@ class Headers():
         return Headers(None, None, headers, padLen, E, streamDependency, weight, None, header)
 
 
+class Priority():
+    def __init__(self, streamID, E = 0, streamDependency = 0, weight = 0, header = None):
+        self.E = E
+        self.streamDependency = streamDependency
+        self.weight = self.weight
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.PRIORITY, 0, streamID)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        if self.E:
+            self.wire = packHex(self.streamDependency | 0x80000000, 4)
+        else:
+            self.wire = packHex(self.streamDependency, 4)
+        self.wire += packHex(self.weight, 1)
+
+    @staticmethod
+    def getFrame(header, data):
+        if header.length != 5:
+            #frame_size_error
+            pass
+        streamDependency, weight = struct.unpack(">IB", data[:5])
+        E = streamDependency >> 31
+        streamDependency &= 0x7fffffff
+        return Priority(None, E, streamDependency, weight, header)
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
