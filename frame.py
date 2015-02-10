@@ -176,6 +176,25 @@ class Priority():
         streamDependency &= 0x7fffffff
         return Priority(None, E, streamDependency, weight, header)
 
+class Rst_stream():
+    def __init__(self, streamID, errorNum = ERR_CODE.NO_ERROR, header = None):
+        self.errorNum = errorNum
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.RST_STREAM, 0, streamID)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        self.wire = packHex(self.errorNum, 4)
+
+    @staticmethod
+    def getFrame(header, data):
+        errorCode = struct.unpack(">I", data)[0]
+        return Rst_stream(None, errorCode, header)
+
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
