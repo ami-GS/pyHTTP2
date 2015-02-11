@@ -195,6 +195,29 @@ class Rst_stream():
         return Rst_stream(None, errorCode, header)
 
 
+class Settings():
+    def __init__(self, flags, settingID = SETTINGS.NO, value = 0, header = None):
+        self.settingID = settingID
+        self.value = value
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.SETTINGS, flags, 0)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        if self.header.flags & FLAG.ACK = FLAG.ACK:
+            self.wire = ""
+            return
+        self.wire = packHex(self.settingID, 2) + packHex(self.value, 4)
+
+    @staticmethod
+    def getFrame(header, data):
+        settingID, value = struct.unpack(">HI", data[:6])
+        return Settings(None, settingID, value, header)
+
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
