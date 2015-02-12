@@ -218,6 +218,50 @@ class Settings():
         return Settings(None, settingID, value, header)
 
 
+class Push_primise():
+    def __init__(self, flags, streamID, promisedID, padLen = 0, headers = None, table = None,  header = None):
+        self.promisedID = promisedID
+        self.padLen = padLen
+        self.headers = headers
+        if headr:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.PUSH_PROMISE, flgas, streamID)
+            self._makeWire(table)
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self, table):
+        self.wire = ""
+        padding = ""
+        if self.header.flags & FLAG.PADDED = FLAG.PADDED:
+            self.wire += packHex(self.padLen, 1)
+            padding = packHex(0, self.padLen)
+        self.wire += packHex(self.promisedID, 4)
+        if self.headers:
+            self.wire += encode(self.headers, False, False, False, table)
+        self.wire += padding
+
+    @staticmethod
+    def getFrame(header, data, table):
+        index = 0
+        padLen = 0
+        if header.flags & FLAG.PADDED == FLAG.PADDED:
+            padLen = struct.unpack(">B", data[0])[0]
+            padding = data[-padlen:]
+            index += 1
+        promisedID = struct.unpack(">I", data[index:index+4])[0] & 0x7fffffff
+
+        headers = None
+        if header.flags & FLAG.END_HEADERS == FLAG.END_HEADERS:
+            tmp = data[index+4: len(data) if header.flags & FLAG.PADDED != FLAG.PADDED else -padLen]
+            headers = decode(tmp, table)
+        else:
+            #TODO buffer temporal header flagment
+            pass
+
+        return Push_promise(None, None, promisedID, padLen, headers, None, header)
+
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
