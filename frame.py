@@ -84,7 +84,7 @@ class Data():
 
 
 class Headers():
-    def __init__(self, flags, streamID, headers, padLen = 0, E = 0, streamDependency = 0, weight = 0table = None, header = None):
+    def __init__(self, flags, streamID, headers, padLen = 0, E = 0, streamDependency = 0, weight = 0, table = None, header = None):
         self.headers = headers
         self.padLen = padLen
         self.E = E
