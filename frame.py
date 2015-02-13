@@ -262,6 +262,23 @@ class Push_primise():
         return Push_promise(None, None, promisedID, padLen, headers, None, header)
 
 
+class Ping():
+    def __init__(self, flgas, data, header = None):
+        self.data = data
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.PING, flags, 0)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        self.wire = packHex(self.data, 8)
+
+    @staticmethod
+    def getFrame(header, data):
+        return Ping(None, data[:8], header)
+
 class Goaway():
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", header = None):
         self.lastID = lastID
