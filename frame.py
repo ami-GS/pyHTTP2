@@ -303,3 +303,39 @@ class Goaway():
         lastID &= 0x7fffffff
         debugString = upackHex(data[8:])
         return Goaway(lastID, errorNum, debugString, header)
+
+class Window_Update():
+    def __init__(self, streamID, windowSizeIncrement, header = None):
+        self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.GOAWAY, 0, streamID)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        self.wire = packHex(self.windowSizeIncrement, 4)
+
+    @staticmethod
+    def getFrame(header, data):
+        windowSizeIncrement = struct.unpack(">I", data[:4])[0] & 0x7fffffff
+        return Window_Update(None, windowSizeIncrement, header)
+
+class Continuation():
+    def __init__(self, flags, streamID, headerFragment, header):
+        self.headerFragment = headerFragment
+        if header:
+            self.header = header
+        else:
+            self.header = Http2Header(TYPE.CONTINUATION, flags, streamID)
+            self._makeWire()
+            self.header.setLength(len(self.wire))
+
+    def _makeWire(self):
+        self.wire = self.headerFragment
+
+    @staticmethod
+    def getFrame(header, data):
+        headerFragment = data #dangerous?
+        return Continuation(None, None, headerFragment, header)
