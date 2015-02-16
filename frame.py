@@ -26,11 +26,10 @@ def getFrame(data):
     elif header.frame == TYPE.CONTINUATION:
         frame = Continuation.getFrame(header, data[9:])
 
-
     return frame
 
 class Http2Header():
-    def __init__(self, frame, flags, streamID, parsing):
+    def __init__(self, frame, flags, streamID, parsing = False):
         self.frame = frame
         self.flags = flags
         self.streamID = streamID
@@ -127,7 +126,7 @@ class Headers():
         E = 0
         streamDependency = 0
         weight = 0
-        if header.flags&FLAG.END_HEADERS = FLAG.END_HEADERS:
+        if header.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             headers = decode(data, table)
             #return DATA
         if header.flags&FLAG.PADDED == FLAG.PADDED:
@@ -207,7 +206,7 @@ class Settings():
             self.header.setLength(len(self.wire))
 
     def _makeWire(self):
-        if self.header.flags & FLAG.ACK = FLAG.ACK:
+        if self.header.flags & FLAG.ACK == FLAG.ACK:
             self.wire = ""
             return
         self.wire = packHex(self.settingID, 2) + packHex(self.value, 4)
@@ -233,7 +232,7 @@ class Push_primise():
     def _makeWire(self, table):
         self.wire = ""
         padding = ""
-        if self.header.flags & FLAG.PADDED = FLAG.PADDED:
+        if self.header.flags & FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding = packHex(0, self.padLen)
         self.wire += packHex(self.promisedID, 4)
