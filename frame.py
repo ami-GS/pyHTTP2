@@ -29,10 +29,11 @@ def getFrame(data):
     return frame
 
 class Http2Header():
-    def __init__(self, frame, flags, streamID, parsing = False):
+    def __init__(self, frame, flags, streamID, length, parsing = False):
         self.frame = frame
         self.flags = flags
         self.streamID = streamID
+        self.length = length
         if not parsing:
             self._makeWire()
 
@@ -58,14 +59,16 @@ class Data():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.DATA, flags, streamID)
-            self._makeWire()
-            self.header.setLength(len(self.wire))
+            self._makeWire(flags)
+            self.header = Http2Header(TYPE.DATA, flags, streamID, len(self.wire))
 
-    def _makeWire(self):
+    def getWire(self):
+        return self.header.getWire() + self.wire
+
+    def _makeWire(self, flags):
         self.wire = ""
         padding = ""
-        if self.header.flags&FLAG.PADDED == FLAG.PADDED:
+        if flags&FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding += packHex(0, self.padLen)
         self.wire += self.data + padding
@@ -91,26 +94,28 @@ class Headers():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.HEADERS, flgas, streamID)
-            self._makeWire(table)
-            self.header.setLength(len(self.wire))
+            self._makeWire(flags, table)
+            self.header = Http2Header(TYPE.HEADERS, flgas, streamID, len(self.wire))
 
-    def _makeWire(self, table):
+    def getWire(self):
+        return self.header.getWire() + self.wire
+
+    def _makeWire(self, flags, table):
         padding = ""
         self.wire = encode(headers, False, False, False, table)
-        if self.header.flags&FLAG.PADDED == FLAG.PADDED:
+        if flags&FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding += packHex(0, self.padLen)
-        if self.header.flags&FLAG.PRIORITY == FLAG.PRIORITY:
+        if flags&FLAG.PRIORITY == FLAG.PRIORITY:
             if self.E:
                 self.wire += packHex(self.streamDependency | 0x80000000, 4)
             else:
                 self.wire += packHex(self.streamDependency, 4)
             self.wire += packHex(self.weight, 1)
-        if self.header.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #set state half closed local
             pass
-        if self.header.flags&FLAG.END_STREAM == FLAG.END_STREAM:
+        if flags&FLAG.END_STREAM == FLAG.END_STREAM:
             #set state half closed local
             pass
         self.wire += padding
@@ -154,9 +159,11 @@ class Priority():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.PRIORITY, 0, streamID)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.PRIORITY, 0, streamID, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         if self.E:
@@ -181,9 +188,11 @@ class Rst_stream():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.RST_STREAM, 0, streamID)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.RST_STREAM, 0, streamID, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         self.wire = packHex(self.errorNum, 4)
@@ -201,12 +210,14 @@ class Settings():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.SETTINGS, flags, 0)
-            self._makeWire()
-            self.header.setLength(len(self.wire))
+            self._makeWire(flags)
+            self.header = Http2Header(TYPE.SETTINGS, flags, 0, len(self.wire))
 
-    def _makeWire(self):
-        if self.header.flags & FLAG.ACK == FLAG.ACK:
+    def getWire(self):
+        return self.header.getWire() + self.wire
+
+    def _makeWire(self, flags):
+        if flags & FLAG.ACK == FLAG.ACK:
             self.wire = ""
             return
         self.wire = packHex(self.settingID, 2) + packHex(self.value, 4)
@@ -225,14 +236,16 @@ class Push_primise():
         if headr:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.PUSH_PROMISE, flgas, streamID)
-            self._makeWire(table)
-            self.header.setLength(len(self.wire))
+            self._makeWire(flags, table)
+            self.header = Http2Header(TYPE.PUSH_PROMISE, flgas, streamID, len(self.wire))
 
-    def _makeWire(self, table):
+    def getWire(self):
+        return self.header.getWire() + self.wire
+
+    def _makeWire(self, flags, table):
         self.wire = ""
         padding = ""
-        if self.header.flags & FLAG.PADDED == FLAG.PADDED:
+        if flags & FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding = packHex(0, self.padLen)
         self.wire += packHex(self.promisedID, 4)
@@ -265,11 +278,14 @@ class Ping():
     def __init__(self, flags, data, header = None):
         self.data = data
         if header:
+            print header
             self.header = header
         else:
-            self.header = Http2Header(TYPE.PING, flags, 0)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.PING, flags, 0, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         self.wire = packHex(self.data, 8)
@@ -286,9 +302,11 @@ class Goaway():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.GOAWAY, 0, 0)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.GOAWAY, 0, 0, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         self.wire = packHex(self.lastID, 4)
@@ -309,9 +327,11 @@ class Window_Update():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.GOAWAY, 0, streamID)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.GOAWAY, 0, streamID, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         self.wire = packHex(self.windowSizeIncrement, 4)
@@ -327,9 +347,11 @@ class Continuation():
         if header:
             self.header = header
         else:
-            self.header = Http2Header(TYPE.CONTINUATION, flags, streamID)
             self._makeWire()
-            self.header.setLength(len(self.wire))
+            self.header = Http2Header(TYPE.CONTINUATION, flags, streamID, len(self.wire))
+
+    def getWire(self):
+        return self.header.getWire() + self.wire
 
     def _makeWire(self):
         self.wire = self.headerFragment
