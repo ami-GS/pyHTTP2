@@ -37,7 +37,7 @@ class Http2Header():
             self._makeWire()
 
     def _makeWire(self):
-        self.wire = struct.pack(">I2BI", self.length, self.frame, self.flags, self.sId)[1:]
+        self.wire = struct.pack(">I2BI", self.length, self.frame, self.flags, self.streamID)[1:]
 
     def setLength(self, length):
         self.length = length
@@ -262,7 +262,7 @@ class Push_primise():
 
 
 class Ping():
-    def __init__(self, flgas, data, header = None):
+    def __init__(self, flags, data, header = None):
         self.data = data
         if header:
             self.header = header
