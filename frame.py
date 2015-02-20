@@ -112,12 +112,6 @@ class Headers():
             else:
                 self.wire += packHex(self.streamDependency, 4)
             self.wire += packHex(self.weight, 1)
-        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            #set state half closed local
-            pass
-        if flags&FLAG.END_STREAM == FLAG.END_STREAM:
-            #set state half closed local
-            pass
         self.wire += padding
 
     @staticmethod
@@ -143,9 +137,6 @@ class Headers():
             E = streamDependenct >> 31
             streamDependency &= 0x7fffffff
             index += 5
-        if header.flags&FLAG.END_STREAM == FLAG.END_STREAM:
-            #set state half closed remote
-            pass
 
         #append wire if not a END_HEADERS flag
         return Headers(None, None, headers, padLen, E, streamDependency, weight, None, header)
@@ -174,9 +165,6 @@ class Priority():
 
     @staticmethod
     def getFrame(header, data):
-        if header.length != 5:
-            #frame_size_error
-            pass
         streamDependency, weight = struct.unpack(">IB", data[:5])
         E = streamDependency >> 31
         streamDependency &= 0x7fffffff
