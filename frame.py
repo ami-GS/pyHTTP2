@@ -3,28 +3,28 @@ from util import *
 from settings import *
 
 def getFrame(data):
-    header = Http2Header.getFrame(data[:9])
+    length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
 
-    if header.frame == TYPE.DATA:
-        frame = Data.getFrame(header, data[9:])
-    elif header.frame == TYPE.HEADERS:
-        frame = Headers.getFrame(header, data[9:])
-    elif header.frame == TYPE.PRIORITY:
-        frame = Priority.getFrame(header, data[9:])
-    elif header.frame == TYPE.RST_STREAM:
-        frame = RstStream.getFrame(header, data[9:])
-    elif header.frame == TYPE.SETTINGS:
-        frame = Settings.getFrame(header, data[9:])
-    elif header.frame == TYPE.PUSH_PROMISE:
-        frame = PushPromise.getFrame(header, data[9:])
-    elif header.frame == TYPE.PING:
-        frame = Ping.getFrame(header, data[9:])
-    elif header.frame == TYPE.GOAWAY:
-        frame = Goaway.getFrame(header, data[9:])
-    elif header.frame == TYPE.WINDOW_UPDATE:
-        frame = WindowUpdate.getFrame(header, data[9:])
-    elif header.frame == TYPE.CONTINUATION:
-        frame = Continuation.getFrame(header, data[9:])
+    if frameType == TYPE.DATA:
+        frame = Data.getFrame(flags, streamID, data)
+    elif frameType == TYPE.HEADERS:
+        frame = Headers.getFrame(flags, streamID data)
+    elif frameType == TYPE.PRIORITY:
+        frame = Priority.getFrame(flags, streamID data)
+    elif frameType == TYPE.RST_STREAM:
+        frame = RstStream.getFrame(flags, streamID data)
+    elif frameType == TYPE.SETTINGS:
+        frame = Settings.getFrame(flags, streamID data)
+    elif frameType == TYPE.PUSH_PROMISE:
+        frame = PushPromise.getFrame(flags, streamID data)
+    elif frameType == TYPE.PING:
+        frame = Ping.getFrame(flags, streamID data)
+    elif frameType == TYPE.GOAWAY:
+        frame = Goaway.getFrame(flags, streamID data)
+    elif frameType == TYPE.WINDOW_UPDATE:
+        frame = WindowUpdate.getFrame(flags, streamID data)
+    elif frameType == TYPE.CONTINUATION:
+        frame = Continuation.getFrame(flags, streamID data)
 
     return frame
 
