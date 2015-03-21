@@ -1,6 +1,7 @@
 import struct
 from util import *
 from settings import *
+from pyHPACK import HPACK
 
 def getFrame(data):
     length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
@@ -55,7 +56,7 @@ class Http2Header(object):
 
 class Data(Http2Header):
     def __init__(self, flags, streamID, data = "", padLen = 0, wire = ""):
-        super(self, Data).__init__(TYPE.DATA, flags, streamID, len(wire[9:]))
+        super(Data, self).__init__(TYPE.DATA, flags, streamID, len(wire[9:]))
         self.data = data
         self.padLen = padLen
         if wire:
@@ -86,8 +87,8 @@ class Data(Http2Header):
 
 
 class Headers(Http2Header):
-    def __init__(self, flags, streamID, headers, padLen = 0, E = 0, streamDependency = 0, weight = 0, table = None, wire = ""):
-        super(self, Headers).__init__(TYPE.HEADERS, flags, streamID, len(wire[9:]))
+    def __init__(self, flags, streamID, headers, table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, wire = ""):
+        super(Headers, self).__init__(TYPE.HEADERS, flags, streamID, len(wire[9:]))
         self.headers = headers
         self.padLen = padLen
         self.E = E
@@ -101,7 +102,7 @@ class Headers(Http2Header):
 
     def _makeWire(self, table):
         padding = ""
-        self.wire = encode(headers, False, False, False, table)
+        self.wire = HPACK.encode(self.headers, False, False, False, table)
         if self.flags&FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding += packHex(0, self.padLen)
@@ -126,7 +127,7 @@ class Headers(Http2Header):
         streamDependency = 0
         weight = 0
         if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            headers = decode(targetData, table)
+            headers = HPACK.decode(targetData, table)
             #return DATA
         if flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct,unpack(">B", targetData[0])[0]
@@ -139,12 +140,12 @@ class Headers(Http2Header):
             index += 5
 
         #append wire if not a END_HEADERS flag
-        return Headers(flags, streamID, headers, padLen, E, streamDependency, weight, None, data)
+        return Headers(flags, streamID, headers, None, padLen, E, streamDependency, weight, data)
 
 
 class Priority(Http2Header):
     def __init__(self, flags, streamID, E = 0, streamDependency = 0, weight = 0, wire = ""):
-        super(self, Priority).__init__(TYPE.PRIORITY, flags, streamID, len(wire[9:]))
+        super(Priority, self).__init__(TYPE.PRIORITY, flags, streamID, len(wire[9:]))
         self.E = E
         self.streamDependency = streamDependency
         self.weight = self.weight
@@ -170,9 +171,9 @@ class Priority(Http2Header):
         streamDependency &= 0x7fffffff
         return Priority(flags, streamID, E, streamDependency, weight, data)
 
-class Rst_stream(Http2Header):
+class Rst_Stream(Http2Header):
     def __init__(self, flags, streamID, errorNum = ERR_CODE.NO_ERROR, wire = ""):
-        super(self, Rst_stream).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
+        super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
         self.errorNum = errorNum
         if wire:
             self.wire = wire[9:]
@@ -187,12 +188,12 @@ class Rst_stream(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         errorCode = struct.unpack(">I", data[9:])[0]
-        return Rst_stream(flags, streamID, errorCode, data)
+        return Rst_Stream(flags, streamID, errorCode, data)
 
 
 class Settings(Http2Header):
     def __init__(self, flags, streamID, settingID = SETTINGS.NO, value = 0, wire = ""):
-        super(self, Settings).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
+        super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
         self.settingID = settingID
         self.value = value
         if wire:
@@ -216,7 +217,7 @@ class Settings(Http2Header):
 
 class Push_Promise(Http2Header):
     def __init__(self, flags, streamID, promisedID, padLen = 0, headers = None, table = None,  wire = ""):
-        super(self, Push_Promise).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
+        super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
         self.padLen = padLen
         self.headers = headers
@@ -262,7 +263,7 @@ class Push_Promise(Http2Header):
 
 class Ping(Http2Header):
     def __init__(self, flags, streamID, data, wire = ""):
-        super(self, Ping).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
+        super(Ping, self).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
         self.data = data
         if wire:
             self.wire = wire[9:]
@@ -280,7 +281,7 @@ class Ping(Http2Header):
 
 class Goaway(Http2Header):
     def __init__(self, flags, streamID, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", wire = ""):
-        super(self, Goaway).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
+        super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
         self.lastID = lastID
         self.errorNum = errorNum
         self.debugString = debugString
@@ -305,8 +306,8 @@ class Goaway(Http2Header):
         return Goaway(flags, streamID, lastID, errorNum, debugString, data)
 
 class Window_Update(Http2Header):
-    def __init__(self, flags, streamID, windowSizeIncrement, header = None):
-        super(self, Window_Updata).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
+    def __init__(self, flags, streamID, windowSizeIncrement, wire = ""):
+        super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
         self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
         if wire:
             self.wire = wire[9:]
@@ -324,8 +325,8 @@ class Window_Update(Http2Header):
         return Window_Update(flags, streamID, windowSizeIncrement, data)
 
 class Continuation(Http2Header):
-    def __init__(self, flags, streamID, headerFragment, header):
-        super(self, Continuation).__init__(TYPE.CONTINUATION, flags, streamID, len(wire[9:]))
+    def __init__(self, flags, streamID, headerFragment, wire = ""):
+        super(Continuation, self).__init__(TYPE.CONTINUATION, flags, streamID, len(wire[9:]))
         self.headerFragment = headerFragment
         if wire:
             self.wire = wire[9:]
