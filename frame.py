@@ -28,28 +28,29 @@ def getFrame(data):
 
     return frame
 
-class Http2Header():
-    def __init__(self, frame, flags, streamID, length, parsing = False):
+class Http2Header(object):
+    def __init__(self, frame, flags, streamID, length):
         self.frame = frame
         self.flags = flags
         self.streamID = streamID
         self.length = length
-        if not parsing:
-            self._makeWire()
+        self.wire = ""
+        self.headerWire = ""
 
-    def _makeWire(self):
-        self.wire = struct.pack(">I2BI", self.length, self.frame, self.flags, self.streamID)[1:]
+    def _makeHeaderWire(self):
+        self.length = len(self.wire)
+        self.headerWire = struct.pack(">I2BI", self.length, self.frame, self.flags, self.streamID)[1:]
 
     def setLength(self, length):
         self.length = length
 
     def getWire(self):
-        return self.wire
+        return self.headerWire + self.wire
 
     @staticmethod
-    def getFrame(data):
+    def getHeaderInfo(data):
         length, frame, flags, streamID = struct.unpack(">I2BI", "\x00"+data)
-        return Http2Header(length, frame, flags, streamID, True)
+        return length, frame, flags, streamID
 
 
 class Data():
