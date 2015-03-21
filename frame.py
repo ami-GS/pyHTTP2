@@ -8,23 +8,23 @@ def getFrame(data):
     if frameType == TYPE.DATA:
         frame = Data.getFrame(flags, streamID, data)
     elif frameType == TYPE.HEADERS:
-        frame = Headers.getFrame(flags, streamID data)
+        frame = Headers.getFrame(flags, streamID, data)
     elif frameType == TYPE.PRIORITY:
-        frame = Priority.getFrame(flags, streamID data)
+        frame = Priority.getFrame(flags, streamID, data)
     elif frameType == TYPE.RST_STREAM:
-        frame = RstStream.getFrame(flags, streamID data)
+        frame = RstStream.getFrame(flags, streamID, data)
     elif frameType == TYPE.SETTINGS:
-        frame = Settings.getFrame(flags, streamID data)
+        frame = Settings.getFrame(flags, streamID, data)
     elif frameType == TYPE.PUSH_PROMISE:
-        frame = PushPromise.getFrame(flags, streamID data)
+        frame = Push_Promise.getFrame(flags, streamID, data)
     elif frameType == TYPE.PING:
-        frame = Ping.getFrame(flags, streamID data)
+        frame = Ping.getFrame(flags, streamID, data)
     elif frameType == TYPE.GOAWAY:
-        frame = Goaway.getFrame(flags, streamID data)
+        frame = Goaway.getFrame(flags, streamID, data)
     elif frameType == TYPE.WINDOW_UPDATE:
-        frame = WindowUpdate.getFrame(flags, streamID data)
+        frame = WindowUpdate.getFrame(flags, streamID, data)
     elif frameType == TYPE.CONTINUATION:
-        frame = Continuation.getFrame(flags, streamID data)
+        frame = Continuation.getFrame(flags, streamID, data)
 
     return frame
 
@@ -214,9 +214,9 @@ class Settings(Http2Header):
         return Settings(flags, streamID, settingID, value, data)
 
 
-class Push_primise(Http2Header):
+class Push_Promise(Http2Header):
     def __init__(self, flags, streamID, promisedID, padLen = 0, headers = None, table = None,  wire = ""):
-        super(self, Push_primise).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
+        super(self, Push_Promise).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
         self.padLen = padLen
         self.headers = headers
@@ -257,7 +257,7 @@ class Push_primise(Http2Header):
             #TODO buffer temporal header flagment
             pass
 
-        return Push_promise(flags, streamID, promisedID, padLen, headers, None, data)
+        return Push_Promise(flags, streamID, promisedID, padLen, headers, None, data)
 
 
 class Ping(Http2Header):
