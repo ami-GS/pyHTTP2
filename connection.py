@@ -18,7 +18,7 @@ class Connection(object):
         self.maxHeaderListSize = SETTINGS.INIT_VALUE["header_list_size"]
         self.initialWindowSize = SETTINGS.INIT_VALUE["window_size"]
         self.readyToPayload = False
-        self.goAwayId = 0
+        self.lastStreamID = 0
         self.addStream(0)
         # temporaly using
         self.wireLenLimit = 24
@@ -219,7 +219,7 @@ class Connection(object):
                 print("GO AWAY: %s" % ERR_CODE.string(errCode))
             if len(data) > 8:
                 additionalData =  upackHex(data[8:])
-            self.goAwaysId = lastStreamID
+            self.lastStreamID = lastStreamID
 
         def _window_update(data):
             # not yet complete
@@ -250,7 +250,7 @@ class Connection(object):
                 #self.send(TYPE.DATA, FLAG.NO, 1, data = "aiueoDATA!!!", padLen = 0)
                 self.streams[sId].initWire()
 
-        if self.goAwayId and self.goAwayId < sId:
+        if self.lastStreamID and self.lastStreamID < sId:
             # must ignore
             return
         while len(data) or Type == TYPE.SETTINGS:
