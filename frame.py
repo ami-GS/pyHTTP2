@@ -144,7 +144,7 @@ class Headers(Http2Header):
 
 
 class Priority(Http2Header):
-    def __init__(self, flags, streamID, E = 0, streamDependency = 0, weight = 0, wire = ""):
+    def __init__(self, streamID, E = 0, streamDependency = 0, weight = 0, flags = FLAG.NO, wire = ""):
         super(Priority, self).__init__(TYPE.PRIORITY, flags, streamID, len(wire[9:]))
         self.E = E
         self.streamDependency = streamDependency
@@ -169,10 +169,10 @@ class Priority(Http2Header):
         streamDependency, weight = struct.unpack(">IB", targetData[:5])
         E = streamDependency >> 31
         streamDependency &= 0x7fffffff
-        return Priority(flags, streamID, E, streamDependency, weight, data)
+        return Priority(streamID, E, streamDependency, weight, flags, data)
 
 class Rst_Stream(Http2Header):
-    def __init__(self, flags, streamID, errorNum = ERR_CODE.NO_ERROR, wire = ""):
+    def __init__(self, streamID, errorNum = ERR_CODE.NO_ERROR, flags = FLAG.NO, wire = ""):
         super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
         self.errorNum = errorNum
         if wire:
@@ -188,11 +188,11 @@ class Rst_Stream(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         errorCode = struct.unpack(">I", data[9:])[0]
-        return Rst_Stream(flags, streamID, errorCode, data)
+        return Rst_Stream(streamID, errorCode, flags, data)
 
 
 class Settings(Http2Header):
-    def __init__(self, flags, streamID, settingID = SETTINGS.NO, value = 0, wire = ""):
+    def __init__(self, flags, settingID = SETTINGS.NO, value = 0, streamID = 0, wire = ""):
         super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
         self.settingID = settingID
         self.value = value
@@ -212,7 +212,7 @@ class Settings(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         settingID, value = struct.unpack(">HI", data[:6])
-        return Settings(flags, streamID, settingID, value, data)
+        return Settings(flags, settingID, value, streamID, data)
 
 
 class Push_Promise(Http2Header):
@@ -262,7 +262,7 @@ class Push_Promise(Http2Header):
 
 
 class Ping(Http2Header):
-    def __init__(self, flags, streamID, data, wire = ""):
+    def __init__(self, flags, data, streamID = 0, wire = ""):
         super(Ping, self).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
         self.data = data
         if wire:
@@ -277,10 +277,10 @@ class Ping(Http2Header):
 
     @staticmethod
     def getFrame(flags, streamID, data):
-        return Ping(flags, streamID, data[9:17], data)
+        return Ping(flags, data[9:17], streamID, data)
 
 class Goaway(Http2Header):
-    def __init__(self, flags, streamID, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "", wire = ""):
+    def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "",  flags = FLAG.NO, streamID = 0, wire = ""):
         super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
         self.lastID = lastID
         self.errorNum = errorNum
@@ -303,10 +303,10 @@ class Goaway(Http2Header):
         R = lastID >> 31
         lastID &= 0x7fffffff
         debugString = upackHex(data[17:])
-        return Goaway(flags, streamID, lastID, errorNum, debugString, data)
+        return Goaway(lastID, errorNum, debugString, flags, streamID, data)
 
 class Window_Update(Http2Header):
-    def __init__(self, flags, streamID, windowSizeIncrement, wire = ""):
+    def __init__(self, streamID, windowSizeIncrement, flags = FLAG.NO, wire = ""):
         super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
         self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
         if wire:
@@ -322,7 +322,7 @@ class Window_Update(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         windowSizeIncrement = struct.unpack(">I", data[9:13])[0] & 0x7fffffff
-        return Window_Update(flags, streamID, windowSizeIncrement, data)
+        return Window_Update(streamID, windowSizeIncrement, flags, data)
 
 class Continuation(Http2Header):
     def __init__(self, flags, streamID, headerFragment, wire = ""):
