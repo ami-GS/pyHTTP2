@@ -13,7 +13,7 @@ def getFrame(data):
     elif frameType == TYPE.PRIORITY:
         frame = Priority.getFrame(flags, streamID, data)
     elif frameType == TYPE.RST_STREAM:
-        frame = RstStream.getFrame(flags, streamID, data)
+        frame = Rst_Stream.getFrame(flags, streamID, data)
     elif frameType == TYPE.SETTINGS:
         frame = Settings.getFrame(flags, streamID, data)
     elif frameType == TYPE.PUSH_PROMISE:
