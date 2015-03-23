@@ -127,18 +127,12 @@ class Headers(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data, table):
         targetData = data[9:]
-        if header.streamID == 0:
-            #send error here?
-            pass
-
         index = 0
         padLen = 0
         E = 0
         streamDependency = 0
         weight = 0
-        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            headers = HPACK.decode(targetData, table)
-            #return DATA
+        headers = []
         if flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct,unpack(">B", targetData[0])[0]
             padding = targetData[-padLen:]
@@ -148,6 +142,10 @@ class Headers(Http2Header):
             E = streamDependenct >> 31
             streamDependency &= 0x7fffffff
             index += 5
+        headerFlagment = targetData[index:-padLen]
+        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            headers = HPACK.decode(headerFlagment, table)
+            #return DATA
 
         #append wire if not a END_HEADERS flag
         return Headers(flags, streamID, headers, None, padLen, E, streamDependency, weight, data)
