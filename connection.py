@@ -50,6 +50,9 @@ class Connection(object):
                 frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
             self._send(frame)
 
+    def sendFrame(self, frame):
+        self._send(frame.getWire())
+
     def setStreamState(self, ID, state):
         self.streams[ID].setState(state)
 
