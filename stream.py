@@ -166,7 +166,7 @@ class Stream():
 
         def _goAway():
             # R also should be here
-            frame = packHex(self.connection.lastId, 4)
+            frame = packHex(self.connection.lastStreamID, 4)
             frame += packHex(kwargs["err"], 4)
             frame += kwargs["debug"] if kwargs["debug"] else ""
             return frame
