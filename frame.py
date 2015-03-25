@@ -93,7 +93,7 @@ class Data(Http2Header):
             conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.PROTOCOL_ERROR))
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
             conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.STREAM_CLOSED))
-        if self.Flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
+        if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
 
 class Headers(Http2Header):
@@ -158,9 +158,9 @@ class Headers(Http2Header):
                 conn.setStreamState(self.streamID, STATE.OPEN)
             if self.streamID == 0:
                 conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-            if self.Flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
-            if self.Flags&FLAG.END_STREAM == FLAG.END_STREAM:
+            if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
                 conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
 
@@ -195,7 +195,7 @@ class Priority(Http2Header):
     def validate(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-        if self.Length != 5:
+        if self.length != 5:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
 
 class Rst_Stream(Http2Header):
@@ -218,7 +218,7 @@ class Rst_Stream(Http2Header):
         return Rst_Stream(streamID, errorCode, flags, data)
 
     def validate(self, conn):
-        if self.Length != 4:
+        if self.length != 4:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID == 0 or conn.getStreamState(self.streamID) == STATE.IDLE:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
@@ -251,12 +251,12 @@ class Settings(Http2Header):
     def validate(self, conn):
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-        if self.Length % 6 != 0:
+        if self.length % 6 != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
-        if self.Flags&FLAG.ACK == FLAG.ACK:
-            if self.Length != 0:
+        if self.flags&FLAG.ACK == FLAG.ACK:
+            if self.length != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
-        elif self.Length:
+        elif self.length:
             if self.settingID == SETTINGS.HEADER_TABLE_SIZE:
                 conn.setHeaderTableSize(self.value)
             elif self.settingID == SETTINGS.ENABLE_PUSH:
@@ -334,7 +334,7 @@ class Push_Promise(Http2Header):
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         conn.addStream(self.promisedID, STATE.RESERVED_R)
-        if self.Flags&FLAG.END_HEADERS != FLAG.END_HEADERS:
+        if self.flags&FLAG.END_HEADERS != FLAG.END_HEADERS:
             #TODO buffer temporal header flagment
             pass
 
@@ -357,11 +357,11 @@ class Ping(Http2Header):
         return Ping(flags, data[9:17], streamID, data)
 
     def validate(self, conn):
-        if self.Length != 8:
+        if self.length != 8:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-        if self.Flags&FLAG.ACK != FLAG.ACK:
+        if self.flags&FLAG.ACK != FLAG.ACK:
             conn.sendFrame(Ping(FLAG.ACK, self.data))
 
 class Goaway(Http2Header):
@@ -414,7 +414,7 @@ class Window_Update(Http2Header):
         return Window_Update(streamID, windowSizeIncrement, flags, data)
 
     def validate(self, conn):
-        if self.Length != 4:
+        if self.length != 4:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
         if self.windowSizeIncrement <= 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
@@ -426,7 +426,7 @@ class Window_Update(Http2Header):
                 conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.FLOW_CONTROL_ERROR))
         else:
             #no cool
-            conn.streams[self.StreamID].setWindowSize(windowSizeIncrement)
+            conn.streams[self.streamID].setWindowSize(windowSizeIncrement)
 
 
 
@@ -452,7 +452,7 @@ class Continuation(Http2Header):
     def validate(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-        if self.Flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+        if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             pass # decode and free the flagment
         else:
             pass # temporaly save to connaction
