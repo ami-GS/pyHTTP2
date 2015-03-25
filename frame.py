@@ -150,18 +150,18 @@ class Headers(Http2Header):
         #append wire if not a END_HEADERS flag
         return Headers(flags, streamID, headers, None, padLen, E, streamDependency, weight, data)
 
-        def validate(self, conn):
-            state = conn.getStreamState(self.streamID)
-            if state == STATE.RESERVED_R:
-                conn.setStreamState(self.streamID, STATE.HCLOSED_L)
-            else:
-                conn.setStreamState(self.streamID, STATE.OPEN)
-            if self.streamID == 0:
-                conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
-            if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-                conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
-            if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
-                conn.setStreamState(self.streamID, STATE.HCLOSED_R)
+    def validate(self, conn):
+        state = conn.getStreamState(self.streamID)
+        if state == STATE.RESERVED_R:
+            conn.setStreamState(self.streamID, STATE.HCLOSED_L)
+        else:
+            conn.setStreamState(self.streamID, STATE.OPEN)
+        if self.streamID == 0:
+            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+        if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
+        if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
+            conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
 
 class Priority(Http2Header):
