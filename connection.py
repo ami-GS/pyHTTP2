@@ -5,6 +5,7 @@ import struct
 from util import *
 from pyHPACK.HPACK import decode
 from pyHPACK.tables import Table
+from frame import *
 
 class Connection(object):
     def __init__(self, sock, addr, enable_tls, debug):
@@ -58,6 +59,44 @@ class Connection(object):
 
     def getStreamState(self, ID):
         return self.streams[ID].getState()
+
+    def appendFlagment(self, ID, flagment):
+        self.streams[ID].appendFlagment(flagment)
+
+    def getFrame(self, frameType, flags, streamID, data):
+        if frameType == TYPE.DATA:
+            frame = Data.getFrame(flags, streamID, data)
+        elif frameType == TYPE.HEADERS:
+            frame = Headers.getFrame(flags, streamID, data)
+        elif frameType == TYPE.PRIORITY:
+            frame = Priority.getFrame(flags, streamID, data)
+        elif frameType == TYPE.RST_STREAM:
+            frame = Rst_Stream.getFrame(flags, streamID, data)
+        elif frameType == TYPE.SETTINGS:
+            frame = Settings.getFrame(flags, streamID, data)
+        elif frameType == TYPE.PUSH_PROMISE:
+            frame = Push_Promise.getFrame(flags, streamID, data)
+        elif frameType == TYPE.PING:
+            frame = Ping.getFrame(flags, streamID, data)
+        elif frameType == TYPE.GOAWAY:
+            frame = Goaway.getFrame(flags, streamID, data)
+        elif frameType == TYPE.WINDOW_UPDATE:
+            frame = WindowUpdate.getFrame(flags, streamID, data)
+        elif frameType == TYPE.CONTINUATION:
+            frame = Continuation.getFrame(flags, streamID, data)
+
+        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            stream = self.streams[streamID]
+            frame.headers = decode(stream.headerFlagment + frame.headerFlagment)
+
+        return frame
+
+    def validateData(self, data):
+        while data:
+            length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
+            frame = self.getFrame(frameType, flags, streamID, data[9:9+length])
+            frame.validate(self)
+            data = data[9+length:]
 
     def parseData(self, data):
         Length, Type, Flag, sId = 0, 0, 0, 0 #here?

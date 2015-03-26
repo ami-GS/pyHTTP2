@@ -3,31 +3,6 @@ from util import *
 from settings import *
 from pyHPACK import HPACK
 
-def getFrame(data):
-    length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
-
-    if frameType == TYPE.DATA:
-        frame = Data.getFrame(flags, streamID, data)
-    elif frameType == TYPE.HEADERS:
-        frame = Headers.getFrame(flags, streamID, data)
-    elif frameType == TYPE.PRIORITY:
-        frame = Priority.getFrame(flags, streamID, data)
-    elif frameType == TYPE.RST_STREAM:
-        frame = Rst_Stream.getFrame(flags, streamID, data)
-    elif frameType == TYPE.SETTINGS:
-        frame = Settings.getFrame(flags, streamID, data)
-    elif frameType == TYPE.PUSH_PROMISE:
-        frame = Push_Promise.getFrame(flags, streamID, data)
-    elif frameType == TYPE.PING:
-        frame = Ping.getFrame(flags, streamID, data)
-    elif frameType == TYPE.GOAWAY:
-        frame = Goaway.getFrame(flags, streamID, data)
-    elif frameType == TYPE.WINDOW_UPDATE:
-        frame = WindowUpdate.getFrame(flags, streamID, data)
-    elif frameType == TYPE.CONTINUATION:
-        frame = Continuation.getFrame(flags, streamID, data)
-
-    return frame
 
 class Http2Header(object):
     def __init__(self, frame, flags, streamID, length):
