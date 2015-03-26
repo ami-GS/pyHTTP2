@@ -9,6 +9,7 @@ class Stream():
         self.connection = connection
         self.state = state
         self.windowSize = connection.initialWindowSize
+        self.headerFlagment = ""
         self.wire = ""
 
     def setWindowSize(self, windowSize):
@@ -25,6 +26,12 @@ class Stream():
 
     def initWire(self):
         self.wire = ""
+
+    def initFlagment():
+        self.headerFlagment = ""
+
+    def appendFlagment(self, flagment):
+        self.headerflagment += flagment
 
     def appendWire(self, wire):
         self.wire += wire

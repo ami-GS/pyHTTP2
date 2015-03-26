@@ -72,12 +72,13 @@ class Data(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
 
 class Headers(Http2Header):
-    def __init__(self, flags, streamID, headers, table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, wire = ""):
+    def __init__(self, flags, streamID, headers = [], flagment = "", table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, wire = ""):
         super(Headers, self).__init__(TYPE.HEADERS, flags, streamID, len(wire[9:]))
         self.headers = headers
         self.padLen = padLen
         self.E = E
         self.streamDependency = streamDependency
+        self.headerFlagment = flagment
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -100,14 +101,13 @@ class Headers(Http2Header):
         self.wire += padding
 
     @staticmethod
-    def getFrame(flags, streamID, data, table):
+    def getFrame(flags, streamID, data):
         targetData = data[9:]
         index = 0
         padLen = 0
         E = 0
         streamDependency = 0
         weight = 0
-        headers = []
         if flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct,unpack(">B", targetData[0])[0]
             padding = targetData[-padLen:]
@@ -118,12 +118,9 @@ class Headers(Http2Header):
             streamDependency &= 0x7fffffff
             index += 5
         headerFlagment = targetData[index:-padLen]
-        if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            headers = HPACK.decode(headerFlagment, table)
-            #return DATA
 
         #append wire if not a END_HEADERS flag
-        return Headers(flags, streamID, headers, None, padLen, E, streamDependency, weight, data)
+        return Headers(flags, streamID, [], headerFlagment, None, padLen, E, streamDependency, weight, data)
 
     def validate(self, conn):
         state = conn.getStreamState(self.streamID)
@@ -135,6 +132,9 @@ class Headers(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
+            conn.streams[self.streamID].initFlagment()
+        else:
+            conn.streams[self.streamID].appendFlagment(self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
@@ -261,16 +261,17 @@ class Settings(Http2Header):
 
 
 class Push_Promise(Http2Header):
-    def __init__(self, flags, streamID, promisedID, padLen = 0, headers = None, table = None,  wire = ""):
+    def __init__(self, flags, streamID, promisedID, , headers = [], flagment = "", padLen = 0, table = None, wire = ""):
         super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
         self.padLen = padLen
         self.headers = headers
+        self.headerFlagment = flagment
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
         else:
-            self._makeWire()
+            self._makeWire(table)
             self._makeHeaderWire()
 
     def _makeWire(self, table):
@@ -285,7 +286,7 @@ class Push_Promise(Http2Header):
         self.wire += padding
 
     @staticmethod
-    def getFrame(flags, streamID, data, table):
+    def getFrame(flags, streamID, data):
         targetData = data[9:]
         index = 0
         padLen = 0
@@ -294,13 +295,9 @@ class Push_Promise(Http2Header):
             padding = targetData[-padlen:]
             index += 1
         promisedID = struct.unpack(">I", targetData[index:index+4])[0] & 0x7fffffff
+        headerFlagment = targetData[index+4: len(targetData) if flags & FLAG.PADDED != FLAG.PADDED else -padLen]
 
-        headers = None
-        if flags & FLAG.END_HEADERS == FLAG.END_HEADERS:
-            tmp = targetData[index+4: len(targetData) if flags & FLAG.PADDED != FLAG.PADDED else -padLen]
-            headers = decode(tmp, table)
-
-        return Push_Promise(flags, streamID, promisedID, padLen, headers, None, data)
+        return Push_Promise(flags, streamID, promisedID, [], headerFlagment, padLen, None, data)
 
     def validate(self, conn):
         if self.streamID == 0 or con.enablePush == 0:
@@ -309,9 +306,11 @@ class Push_Promise(Http2Header):
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         conn.addStream(self.promisedID, STATE.RESERVED_R)
-        if self.flags&FLAG.END_HEADERS != FLAG.END_HEADERS:
-            #TODO buffer temporal header flagment
-            pass
+        if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            #send data
+            self.streams[self.streamID].initFlagment()
+        else:
+            self.streams[self.streamID].appendFlagment(self.headerFlagment)
 
 class Ping(Http2Header):
     def __init__(self, flags, data, streamID = 0, wire = ""):
@@ -428,6 +427,7 @@ class Continuation(Http2Header):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            pass # decode and free the flagment
+            #send data
+            conn.streams[self.streamID].initFlagment()
         else:
-            pass # temporaly save to connaction
+            conn.streams[self.streamID].appendFlagment(self.headerFlagment)
