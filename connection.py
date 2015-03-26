@@ -97,7 +97,7 @@ class Connection(object):
     def validateData(self, data):
         while data:
             length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
-            frame = self.getFrame(frameType, flags, streamID, data[9:9+length])
+            frame = self.getFrame(frameType, flags, streamID, data[:9+length])
             frame.validate(self)
             data = data[9+length:]
 
