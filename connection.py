@@ -60,6 +60,9 @@ class Connection(object):
     def getStreamState(self, ID):
         return self.streams[ID].getState()
 
+    def initFlagment(self, ID):
+        self.streams[ID].initFlagment()
+
     def appendFlagment(self, ID, flagment):
         self.streams[ID].appendFlagment(flagment)
 

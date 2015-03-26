@@ -132,9 +132,9 @@ class Headers(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
-            conn.streams[self.streamID].initFlagment()
+            conn.initFlagment(self.streamID)
         else:
-            conn.streams[self.streamID].appendFlagment(self.headerFlagment)
+            conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
@@ -308,9 +308,9 @@ class Push_Promise(Http2Header):
         conn.addStream(self.promisedID, STATE.RESERVED_R)
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #send data
-            self.streams[self.streamID].initFlagment()
+            conn.initFlagment(self.streamID)
         else:
-            self.streams[self.streamID].appendFlagment(self.headerFlagment)
+            conn.appendFlagment(self.streamID, self.headerFlagment)
 
 class Ping(Http2Header):
     def __init__(self, flags, data, streamID = 0, wire = ""):
@@ -428,6 +428,6 @@ class Continuation(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #send data
-            conn.streams[self.streamID].initFlagment()
+            conn.initFlagment(self.streamID)
         else:
-            conn.streams[self.streamID].appendFlagment(self.headerFlagment)
+            conn.appendFlagment(self.streamID, self.headerFlagment)
