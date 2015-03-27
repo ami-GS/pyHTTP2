@@ -105,6 +105,7 @@ class Connection(object):
                 if not self.streams.has_key(streamID):
                     self.addStream(streamID)
                 frame = self.getFrame(frameType, flags, streamID, data[:9+length])
+                print frame.string()
                 frame.validate(self)
                 data = data[9+length:]
 

@@ -2,7 +2,7 @@ import struct
 from util import *
 from settings import *
 from pyHPACK import HPACK
-
+import json
 
 class Http2Header(object):
     def __init__(self, frame, flags, streamID, length):
@@ -28,6 +28,9 @@ class Http2Header(object):
         length, frame, flags, streamID = struct.unpack(">I2BI", "\x00"+data)
         return length, frame, flags, streamID
 
+    def string(self):
+        return "Header: type=%s, flags={%s}, streamID=%d, length=%d\n" % \
+            (TYPE.string(self.frame), FLAG.string(self.flags), self.streamID, self.length)
 
 class Data(Http2Header):
     def __init__(self, flags, streamID, data = "", padLen = 0, wire = ""):
@@ -70,6 +73,10 @@ class Data(Http2Header):
             conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.STREAM_CLOSED))
         if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+
+    def string(self):
+        return "%s data=%s, padding length=%s\n" % \
+            (super(Data, self).string(), self.data, self.padLen)
 
 class Headers(Http2Header):
     def __init__(self, flags, streamID, headers = [], flagment = "", table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, wire = ""):
@@ -117,7 +124,10 @@ class Headers(Http2Header):
             E = streamDependenct >> 31
             streamDependency &= 0x7fffffff
             index += 5
-        headerFlagment = targetData[index:-padLen]
+        if padLen:
+            headerFlagment = targetData[index:-padLen]
+        else:
+            headerFlagment = targetData[index:]
 
         #append wire if not a END_HEADERS flag
         return Headers(flags, streamID, [], headerFlagment, None, padLen, E, streamDependency, weight, data)
@@ -137,6 +147,10 @@ class Headers(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
+
+    def string(self):
+        return "%s headers=%s, padding length=%s, E=%d, stream dependency=%d\n" % \
+            (super(Headers, self).string(), "".join("".join(json.dumps(self.headers).split("\'")).split("\"")), self.padLen, self.E, self.streamDependency)
 
 
 class Priority(Http2Header):
@@ -173,6 +187,11 @@ class Priority(Http2Header):
         if self.length != 5:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
 
+    def string(self):
+        return "%s E=%d, stream dependency=%d, weight=%d\n" % \
+            (super(Priority, self).string(), self.E, self.streamDependency, self.weight)
+
+
 class Rst_Stream(Http2Header):
     def __init__(self, streamID, errorNum = ERR_CODE.NO_ERROR, flags = FLAG.NO, wire = ""):
         super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
@@ -199,6 +218,10 @@ class Rst_Stream(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         else:
             conn.setStreamState(self.streamID, STATE.CLOSED)
+
+    def string(self):
+        return "%s error=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.errorNum))
+
 
 class Settings(Http2Header):
     def __init__(self, flags = FLAG.NO, settingID = SETTINGS.NO, value = 0, streamID = 0, wire = ""):
@@ -259,6 +282,10 @@ class Settings(Http2Header):
                 pass
             conn.sendFrame(Settings(FLAG.ACK))
 
+    def string(self):
+        return "%s setting=%s, value=%d" % \
+            (super(Settings, self).string(), SETTINGS.string(self.settingID), self.value)
+
 
 class Push_Promise(Http2Header):
     def __init__(self, flags, streamID, promisedID, headers = [], flagment = "", padLen = 0, table = None, wire = ""):
@@ -312,6 +339,10 @@ class Push_Promise(Http2Header):
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
+    def string(self):
+        return "%s promisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
+
+
 class Ping(Http2Header):
     def __init__(self, flags = FLAG.NO, data = "", streamID = 0, wire = ""):
         super(Ping, self).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
@@ -337,6 +368,9 @@ class Ping(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.ACK != FLAG.ACK:
             conn.sendFrame(Ping(FLAG.ACK, self.data))
+
+    def string(self):
+        return "%s data=%s" % (super(Ping, self).string(), self.data)
 
 class Goaway(Http2Header):
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "",  flags = FLAG.NO, streamID = 0, wire = ""):
@@ -367,6 +401,10 @@ class Goaway(Http2Header):
     def validate(self, conn):
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE_PROTOCOL_ERROR))
+
+    def string(self):
+        return "%s last streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.errorNum), self.debugString)
+
 
 class Window_Update(Http2Header):
     def __init__(self, streamID, windowSizeIncrement, flags = FLAG.NO, wire = ""):
@@ -402,6 +440,8 @@ class Window_Update(Http2Header):
             #no cool
             conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
 
+    def string(self):
+        return "%s window size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)
 
 
 class Continuation(Http2Header):
@@ -431,3 +471,6 @@ class Continuation(Http2Header):
             conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
+
+    def string(self):
+        return "%s" % (super(Continuation, self).string())
