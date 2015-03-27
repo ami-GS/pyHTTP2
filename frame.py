@@ -201,7 +201,7 @@ class Rst_Stream(Http2Header):
             conn.setStreamState(self.streamID, STATE.CLOSED)
 
 class Settings(Http2Header):
-    def __init__(self, flags, settingID = SETTINGS.NO, value = 0, streamID = 0, wire = ""):
+    def __init__(self, flags = FLAG.NO, settingID = SETTINGS.NO, value = 0, streamID = 0, wire = ""):
         super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
         self.settingID = settingID
         self.value = value
@@ -230,7 +230,7 @@ class Settings(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
         if self.flags&FLAG.ACK == FLAG.ACK:
             if self.length != 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+                conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
         elif self.length:
             if self.settingID == SETTINGS.HEADER_TABLE_SIZE:
                 conn.setHeaderTableSize(self.value)
@@ -261,7 +261,7 @@ class Settings(Http2Header):
 
 
 class Push_Promise(Http2Header):
-    def __init__(self, flags, streamID, promisedID, , headers = [], flagment = "", padLen = 0, table = None, wire = ""):
+    def __init__(self, flags, streamID, promisedID, headers = [], flagment = "", padLen = 0, table = None, wire = ""):
         super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
         self.padLen = padLen
@@ -282,7 +282,7 @@ class Push_Promise(Http2Header):
             padding = packHex(0, self.padLen)
         self.wire += packHex(self.promisedID, 4)
         if self.headers:
-            self.wire += encode(self.headers, False, False, False, table)
+            self.wire += HPACK.encode(self.headers, False, False, False, table)
         self.wire += padding
 
     @staticmethod
@@ -300,7 +300,7 @@ class Push_Promise(Http2Header):
         return Push_Promise(flags, streamID, promisedID, [], headerFlagment, padLen, None, data)
 
     def validate(self, conn):
-        if self.streamID == 0 or con.enablePush == 0:
+        if self.streamID == 0 or conn.enablePush == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         state = conn.getStreamState(self.streamID)
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
@@ -313,7 +313,7 @@ class Push_Promise(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
 class Ping(Http2Header):
-    def __init__(self, flags, data, streamID = 0, wire = ""):
+    def __init__(self, flags = FLAG.NO, data = "", streamID = 0, wire = ""):
         super(Ping, self).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
         self.data = data
         if wire:
@@ -400,7 +400,7 @@ class Window_Update(Http2Header):
                 conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.FLOW_CONTROL_ERROR))
         else:
             #no cool
-            conn.streams[self.streamID].setWindowSize(windowSizeIncrement)
+            conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
 
 
 

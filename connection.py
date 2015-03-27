@@ -85,23 +85,25 @@ class Connection(object):
         elif frameType == TYPE.GOAWAY:
             frame = Goaway.getFrame(flags, streamID, data)
         elif frameType == TYPE.WINDOW_UPDATE:
-            frame = WindowUpdate.getFrame(flags, streamID, data)
+            frame = Window_Update.getFrame(flags, streamID, data)
         elif frameType == TYPE.CONTINUATION:
             frame = Continuation.getFrame(flags, streamID, data)
 
         if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             stream = self.streams[streamID]
-            frame.headers = decode(stream.headerFlagment + frame.headerFlagment)
+            frame.headers = decode(stream.headerFlagment + frame.headerFlagment, self.table)
 
         return frame
 
     def validateData(self, data):
         if data.startswith(CONNECTION_PREFACE):
             self.preface = True
-            data.lstrip(CONNECTION_PREFACE)
+            data = data.lstrip(CONNECTION_PREFACE)
         if self.preface:
             while data:
                 length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
+                if not self.streams.has_key(streamID):
+                    self.addStream(streamID)
                 frame = self.getFrame(frameType, flags, streamID, data[:9+length])
                 frame.validate(self)
                 data = data[9+length:]

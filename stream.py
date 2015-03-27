@@ -27,7 +27,7 @@ class Stream():
     def initWire(self):
         self.wire = ""
 
-    def initFlagment():
+    def initFlagment(self):
         self.headerFlagment = ""
 
     def appendFlagment(self, flagment):
