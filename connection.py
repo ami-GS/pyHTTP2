@@ -21,6 +21,7 @@ class Connection(object):
         self.readyToPayload = False
         self.lastStreamID = 0
         self.addStream(0)
+        self.preface = False
         # temporaly using
         self.wireLenLimit = 24
         self.debug = debug
@@ -95,11 +96,15 @@ class Connection(object):
         return frame
 
     def validateData(self, data):
-        while data:
-            length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
-            frame = self.getFrame(frameType, flags, streamID, data[:9+length])
-            frame.validate(self)
-            data = data[9+length:]
+        if data.startswith(CONNECTION_PREFACE):
+            self.preface = True
+            data.lstrip(CONNECTION_PREFACE)
+        if self.preface:
+            while data:
+                length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
+                frame = self.getFrame(frameType, flags, streamID, data[:9+length])
+                frame.validate(self)
+                data = data[9+length:]
 
     def parseData(self, data):
         Length, Type, Flag, sId = 0, 0, 0, 0 #here?
