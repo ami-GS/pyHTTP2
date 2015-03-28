@@ -75,7 +75,7 @@ class Data(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
 
     def string(self):
-        return "%s data=%s, padding length=%s\n" % \
+        return "%s\tdata=%s, padding length=%s\n" % \
             (super(Data, self).string(), self.data, self.padLen)
 
 class Headers(Http2Header):
@@ -149,7 +149,7 @@ class Headers(Http2Header):
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
     def string(self):
-        return "%s headers=%s, padding length=%s, E=%d, stream dependency=%d\n" % \
+        return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d" % \
             (super(Headers, self).string(), "".join("".join(json.dumps(self.headers).split("\'")).split("\"")), self.padLen, self.E, self.streamDependency)
 
 
@@ -188,7 +188,7 @@ class Priority(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
 
     def string(self):
-        return "%s E=%d, stream dependency=%d, weight=%d\n" % \
+        return "%s\tE=%d, stream dependency=%d, weight=%d\n" % \
             (super(Priority, self).string(), self.E, self.streamDependency, self.weight)
 
 
@@ -220,7 +220,7 @@ class Rst_Stream(Http2Header):
             conn.setStreamState(self.streamID, STATE.CLOSED)
 
     def string(self):
-        return "%s error=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.errorNum))
+        return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.errorNum))
 
 
 class Settings(Http2Header):
@@ -283,7 +283,7 @@ class Settings(Http2Header):
             conn.sendFrame(Settings(FLAG.ACK))
 
     def string(self):
-        return "%s setting=%s, value=%d" % \
+        return "%s\tsetting=%s, value=%d" % \
             (super(Settings, self).string(), SETTINGS.string(self.settingID), self.value)
 
 
@@ -340,7 +340,7 @@ class Push_Promise(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
     def string(self):
-        return "%s promisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
+        return "%s\tpromisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
 
 
 class Ping(Http2Header):
@@ -370,7 +370,7 @@ class Ping(Http2Header):
             conn.sendFrame(Ping(FLAG.ACK, self.data))
 
     def string(self):
-        return "%s data=%s" % (super(Ping, self).string(), self.data)
+        return "%s\tdata=%s" % (super(Ping, self).string(), self.data)
 
 class Goaway(Http2Header):
     def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "",  flags = FLAG.NO, streamID = 0, wire = ""):
@@ -403,7 +403,7 @@ class Goaway(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE_PROTOCOL_ERROR))
 
     def string(self):
-        return "%s last streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.errorNum), self.debugString)
+        return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.errorNum), self.debugString)
 
 
 class Window_Update(Http2Header):
@@ -441,7 +441,7 @@ class Window_Update(Http2Header):
             conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
 
     def string(self):
-        return "%s window size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)
+        return "%s\twindow size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)
 
 
 class Continuation(Http2Header):
