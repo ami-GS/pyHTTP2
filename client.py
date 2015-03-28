@@ -25,6 +25,6 @@ class Client(Connection):
         try:
             while True:
                 data = self._recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
-                self.parseData(data)
+                self.validateData(data)
         except Exception as e:
             return

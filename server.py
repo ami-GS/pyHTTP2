@@ -44,7 +44,7 @@ class Client(Connection):
     def worker(self):
         data = self.recv()
         while len(data):
-            self.parseData(data)
+            self.validateData(data)
             data = self.recv()
 
     def recv(self):

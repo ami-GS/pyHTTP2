@@ -4,36 +4,35 @@ from binascii import hexlify
 import time
 from client import Client
 from threading import Thread
+from frame import *
 
 def access(host, port):
     con = Client((host, port), False, True)
     con.notifyHTTP2()
     time.sleep(0.2)
-    con.send(TYPE.SETTINGS, param=SETTINGS.NO, value = "")
+    con.sendFrame(Settings())
     time.sleep(0.2)
     raw_input("next")
-    con.send(TYPE.HEADERS, FLAG.NO, 1, headers = [[":method", "GET"],
+    con.sendFrame(Headers(FLAG.END_HEADERS, 1, [[":method", "GET"],
                                                   [":scheme", "http"],
                                                   [":authority", "127.0.0.1"],
-                                                  [":path", "/"]])
-
+                                                  [":path", "/"]], "", con.table))
     raw_input("next")
-    con.send(TYPE.PUSH_PROMISE, FLAG.NO, 1, pushId = 3, headers = [[":method", "GET"],
-                                                                   [":scheme", "http"],
-                                                                   [":authority", "127.0.0.1"],
-                                                                   [":path", "/"]])
+    con.sendFrame(Push_Promise(FLAG.END_HEADERS, 1, 3, [[":method", "GET"],
+                                                        [":scheme", "http"],
+                                                        [":authority", "127.0.0.1"],
+                                                        [":path", "/"]], "", 0, con.table))
     #con.send(TYPE.PRIORITY, FLAG.NO, 1, E = 1, depend = 1, weight = 1)
     raw_input("next")
-    con.send(TYPE.PING, ping = "hello!!")
+    con.sendFrame(Ping(FLAG.NO, "HELLO!!"))
     raw_input("next")
-    con.send(TYPE.WINDOW_UPDATE, streamId = 0, windowSizeIncrement = 10, R = 1)
+    con.sendFrame(Window_Update(0, 10))
     raw_input("next")
-    con.send(TYPE.WINDOW_UPDATE, streamId = 1, windowSizeIncrement = 10, R = 1)
+    con.sendFrame(Window_Update(1, 10))
     raw_input("next")
-    con.send(TYPE.RST_STREAM, streamId = 1, err = ERR_CODE.NO_ERROR)
+    con.sendFrame(Rst_Stream(1, ERR_CODE.NO_ERROR))
     raw_input("next")
-    con.send(TYPE.GOAWAY, err = ERR_CODE.NO_ERROR, debug = None)
-
+    con.sendFrame(Goaway(5, ERR_CODE.NO_ERROR, debugString = "debug!!"))
 
 if __name__ == "__main__":
     host = "127.0.0.1"
