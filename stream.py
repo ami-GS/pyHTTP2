@@ -25,6 +25,8 @@ class Stream():
 
     def initFlagment(self):
         self.headerFlagment = ""
+        self.continuing = False
 
     def appendFlagment(self, flagment):
         self.headerflagment += flagment
+        self.continuing = True

@@ -141,7 +141,6 @@ class Headers(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
-            conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
