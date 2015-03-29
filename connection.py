@@ -68,10 +68,12 @@ class Connection(object):
         self.streams[ID].appendFlagment(flagment)
 
     def getFrame(self, frameType, flags, streamID, data):
+        stream = self.streams[streamID]
         if frameType == TYPE.DATA:
             frame = Data.getFrame(flags, streamID, data)
         elif frameType == TYPE.HEADERS:
             frame = Headers.getFrame(flags, streamID, data)
+            stream.continuing = True
         elif frameType == TYPE.PRIORITY:
             frame = Priority.getFrame(flags, streamID, data)
         elif frameType == TYPE.RST_STREAM:
@@ -80,6 +82,7 @@ class Connection(object):
             frame = Settings.getFrame(flags, streamID, data)
         elif frameType == TYPE.PUSH_PROMISE:
             frame = Push_Promise.getFrame(flags, streamID, data)
+            stream.continuing = True
         elif frameType == TYPE.PING:
             frame = Ping.getFrame(flags, streamID, data)
         elif frameType == TYPE.GOAWAY:
@@ -90,8 +93,8 @@ class Connection(object):
             frame = Continuation.getFrame(flags, streamID, data)
 
         if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            stream = self.streams[streamID]
             frame.headers = decode(stream.headerFlagment + frame.headerFlagment, self.table)
+            stream.continuing = False
 
         return frame
 
@@ -105,9 +108,13 @@ class Connection(object):
                 if not self.streams.has_key(streamID):
                     self.addStream(streamID)
                 frame = self.getFrame(frameType, flags, streamID, data[:9+length])
-                print "RECV\n\t%s" % frame.string()
-                frame.validate(self)
                 data = data[9+length:]
+                print "RECV\n\t%s" % frame.string()
+
+                if self.streams[streamID].continuing and frameType != TYPE.CONTINUATION:
+                    self.sendFrame(Goaway(self.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+                    continue
+                frame.validate(self)
 
     def addStream(self, stream, state = STATE.IDLE):
         self.streams[stream] = Stream(stream, self, state)

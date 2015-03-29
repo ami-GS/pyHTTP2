@@ -9,7 +9,7 @@ class Stream():
         self.state = state
         self.windowSize = connection.initialWindowSize
         self.headerFlagment = ""
-        self.wire = ""
+        self.continuing = False
 
     def setWindowSize(self, windowSize):
         self.windowSize = windowSize
