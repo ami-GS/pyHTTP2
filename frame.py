@@ -1,4 +1,4 @@
-oimport struct
+import struct
 from util import *
 from settings import *
 from pyHPACK import HPACK
@@ -233,7 +233,7 @@ class Rst_Stream(Http2Header):
             conn.setStreamState(self.streamID, STATE.CLOSED)
 
     def string(self):
-        return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.errorNum))
+        return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.err))
 
 
 class Settings(Http2Header):
@@ -403,7 +403,6 @@ class Goaway(Http2Header):
         super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
         self.lastID = lastID
         self.err = kwargs.get("err", ERR_CODE.NO_ERROR)
-        print kwargs
         self.debugString = kwargs.get("debugString", "")
         if wire:
             self.wire = wire[9:]
@@ -436,7 +435,7 @@ class Goaway(Http2Header):
 class Window_Update(Http2Header):
     def __init__(self, streamID, windowSizeIncrement, **kwargs):
         flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs,get("wire", "")
+        wire = kwargs.get("wire", "")
         super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
         self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
         if wire:
