@@ -13,26 +13,23 @@ def access(host, port):
     con.sendFrame(Settings())
     time.sleep(0.2)
     raw_input("next")
-    con.sendFrame(Headers(FLAG.END_HEADERS, 1, [[":method", "GET"],
-                                                  [":scheme", "http"],
-                                                  [":authority", "127.0.0.1"],
-                                                  [":path", "/"]], "", con.table))
+    con.sendFrame(Headers([[":method", "GET"], [":scheme", "http"],
+                           [":authority", "127.0.0.1"], [":path", "/"]],
+                          1, flags=FLAG.END_HEADERS, table=con.table))
     raw_input("next")
-    con.sendFrame(Push_Promise(FLAG.END_HEADERS, 1, 3, [[":method", "GET"],
-                                                        [":scheme", "http"],
-                                                        [":authority", "127.0.0.1"],
-                                                        [":path", "/"]], "", 0, con.table))
-    #con.send(TYPE.PRIORITY, FLAG.NO, 1, E = 1, depend = 1, weight = 1)
+    con.sendFrame(Push_Promise([[":method", "GET"], [":scheme", "http"],
+                                [":authority", "127.0.0.1"], [":path", "/"]],
+                               1, 3, flags=FLAG.END_HEADERS, table=con.table))
     raw_input("next")
-    con.sendFrame(Ping(FLAG.NO, "HELLO!!"))
+    con.sendFrame(Ping("HELLO!"))
     raw_input("next")
     con.sendFrame(Window_Update(0, 10))
     raw_input("next")
     con.sendFrame(Window_Update(1, 10))
     raw_input("next")
-    con.sendFrame(Rst_Stream(1, ERR_CODE.NO_ERROR))
+    con.sendFrame(Rst_Stream(1))
     raw_input("next")
-    con.sendFrame(Goaway(5, ERR_CODE.NO_ERROR, debugString = "debug!!"))
+    con.sendFrame(Goaway(5, debugString = "debug!!"))
 
 if __name__ == "__main__":
     host = "127.0.0.1"
