@@ -1,4 +1,4 @@
-import struct
+oimport struct
 from util import *
 from settings import *
 from pyHPACK import HPACK
@@ -33,10 +33,14 @@ class Http2Header(object):
             (TYPE.string(self.frame), FLAG.string(self.flags), self.streamID, self.length)
 
 class Data(Http2Header):
-    def __init__(self, flags, streamID, data = "", padLen = 0, wire = ""):
-        super(Data, self).__init__(TYPE.DATA, flags, streamID, len(wire[9:]))
+    def __init__(self, data, streamID, **kwargs):
+        self.padLen = kwargs.get("padLen", 0)
         self.data = data
-        self.padLen = padLen
+        flags = kwargs.get("flags", FLAG.NO)
+        wire = kwargs.get("wire", "")
+        if self.padLen:
+            flags |= FLAG.PADDING
+        super(Data, self).__init__(TYPE.DATA, flags, streamID, len(wire[9:]))
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -60,37 +64,43 @@ class Data(Http2Header):
             padLen = struct.unpack(">B", targetData[0])[0]
             index += 1
         content = targetData[index: len(targetData) if flags != FLAG.PADDED else -padLen]
-        return Data(flags, streamID, content, padLen, data)
-
+        return Data(content, streamID, flags=flags, padLen=padLen, wire=data)
 
     def validate(self, conn):
         if self.streamID == 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         state = conn.getStreamState(self.streamID)
         if state == STATE.CLOSED:
-            conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.PROTOCOL_ERROR))
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
-            conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.STREAM_CLOSED))
+            conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.STREAM_CLOSED))
         if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
 
     def string(self):
         return "%s\tdata=%s, padding length=%s\n" % \
             (super(Data, self).string(), self.data, self.padLen)
 
 class Headers(Http2Header):
-    def __init__(self, flags, streamID, headers = [], flagment = "", table = None, padLen = 0, E = 0, streamDependency = 0, weight = 0, wire = ""):
+    def __init__(self, headers, streamID, **kwargs):
+        self.padLen = kwargs.get("padLen", 0)
+        self.E = kwargs.get("E", 0)
+        self.streamDependency = kwargs.get("streamDependency", 0)
+        self.weight = kwargs.get("weight", 0)
+        flags = kwargs.get("flags", FLAG.NO)
+        wire  = kwargs.get("wire", "")
+        if self.padLen:
+            flags |= FLAG.PADDING
+        if self.streamDependency:
+            flags |= FLAG.PRIORITY
         super(Headers, self).__init__(TYPE.HEADERS, flags, streamID, len(wire[9:]))
         self.headers = headers
-        self.padLen = padLen
-        self.E = E
-        self.streamDependency = streamDependency
         if wire:
-            self.headerFlagment = flagment
+            self.headerFlagment = kwargs.get("flagment", "")
             self.wire = wire[9:]
             self.headerWire = wire[:9]
         else:
-            self.headerFlagment = HPACK.encode(self.headers, False, False, False, table)
+            self.headerFlagment = HPACK.encode(self.headers, False, False, False, kwargs.get("table"))
             self._makeWire()
             self._makeHeaderWire()
 
@@ -129,7 +139,8 @@ class Headers(Http2Header):
         else:
             headerFlagment = targetData[index:]
 
-        return Headers(flags, streamID, [], headerFlagment, None, padLen, E, streamDependency, weight, data)
+        return Headers([], streamID, flags=flags, flagment=headerFlagment, padLen=padLen,
+                       E=E, straemDependency=streamDependency, weight=weight, wire=data)
 
     def validate(self, conn):
         state = conn.getStreamState(self.streamID)
@@ -138,9 +149,9 @@ class Headers(Http2Header):
         else:
             conn.setStreamState(self.streamID, STATE.OPEN)
         if self.streamID == 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            conn.sendFrame(Data(FLAG.END_STREAM, self.streamID, "return Data!"))
+            conn.sendFrame(Data("return Data!", self.streamID, flags=FLAG.END_STREAM))
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
@@ -152,7 +163,9 @@ class Headers(Http2Header):
 
 
 class Priority(Http2Header):
-    def __init__(self, streamID, E = 0, streamDependency = 0, weight = 0, flags = FLAG.NO, wire = ""):
+    def __init__(self, streamID, E, streamDependency, weight, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        wire = kwargs.get("wire", "")
         super(Priority, self).__init__(TYPE.PRIORITY, flags, streamID, len(wire[9:]))
         self.E = E
         self.streamDependency = streamDependency
@@ -177,13 +190,13 @@ class Priority(Http2Header):
         streamDependency, weight = struct.unpack(">IB", targetData[:5])
         E = streamDependency >> 31
         streamDependency &= 0x7fffffff
-        return Priority(streamID, E, streamDependency, weight, flags, data)
+        return Priority(streamID, E, streamDependency, weight, flags=flags, wire=data)
 
     def validate(self, conn):
         if self.streamID == 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.length != 5:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
 
     def string(self):
         return "%s\tE=%d, stream dependency=%d, weight=%d\n" % \
@@ -191,9 +204,11 @@ class Priority(Http2Header):
 
 
 class Rst_Stream(Http2Header):
-    def __init__(self, streamID, errorNum = ERR_CODE.NO_ERROR, flags = FLAG.NO, wire = ""):
+    def __init__(self, streamID, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        self.err = kwargs.get("err", ERR_CODE.NO_ERROR)
+        wire = kwargs.get("wire", "")
         super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
-        self.errorNum = errorNum
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -202,18 +217,18 @@ class Rst_Stream(Http2Header):
             self._makeHeaderWire()
 
     def _makeWire(self):
-        self.wire = packHex(self.errorNum, 4)
+        self.wire = packHex(self.err, 4)
 
     @staticmethod
     def getFrame(flags, streamID, data):
-        errorCode = struct.unpack(">I", data[9:])[0]
-        return Rst_Stream(streamID, errorCode, flags, data)
+        err = struct.unpack(">I", data[9:])[0]
+        return Rst_Stream(streamID, err=err, flags=flags, wire=data)
 
     def validate(self, conn):
         if self.length != 4:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID == 0 or conn.getStreamState(self.streamID) == STATE.IDLE:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         else:
             conn.setStreamState(self.streamID, STATE.CLOSED)
 
@@ -222,7 +237,10 @@ class Rst_Stream(Http2Header):
 
 
 class Settings(Http2Header):
-    def __init__(self, flags = FLAG.NO, settingID = SETTINGS.NO, value = 0, streamID = 0, wire = ""):
+    def __init__(self, settingID=SETTINGS.NO, value=0, **kwargs):
+        streamID = kwargs.get("streamID", 0)
+        flags = kwargs.get("flags", FLAG.NO)
+        wire = kwargs.get("wire", "")
         super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
         self.settingID = settingID
         self.value = value
@@ -242,16 +260,16 @@ class Settings(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         settingID, value = struct.unpack(">HI", data[:6])
-        return Settings(flags, settingID, value, streamID, data)
+        return Settings(settingID, value, flags=flags, streamID=streamID, wire=data)
 
     def validate(self, conn):
         if self.streamID != 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.length % 6 != 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.flags&FLAG.ACK == FLAG.ACK:
             if self.length != 0:
-                conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+                conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         elif self.length:
             if self.settingID == SETTINGS.HEADER_TABLE_SIZE:
                 conn.setHeaderTableSize(self.value)
@@ -259,26 +277,26 @@ class Settings(Http2Header):
                 if self.value == 1 or value == 0:
                     conn.enablePush = value
                 else:
-                    conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+                    conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
             elif self.settingID == SETTINGS.MAX_CONCURRENT_STREAMS:
                 if self.value <= 100:
                     print("Warnnig: max_concurrent_stream below 100 is not recomended")
                 conn.maxConcurrentStreams = self.value
             elif self.settingID == SETTINGS.INITIAL_WINDOW_SIZE:
                 if self.value > MAX_WINDOW_SIZE:
-                    conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FLOW_CONTROL_ERROR))
+                    conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FLOW_CONTROL_ERROR))
                 else:
                     conn.initialWindowSize = self.value
             elif self.settingID == SETTINGS.MAX_FRAME_SIZE:
                 if INITIAL_MAX_FRAME_SIZE <= self.value <= LIMIT_MAX_FRAME_SIZE:
                     conn.maxFrameSize = self.value
                 else:
-                    conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+                    conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
             elif self.settingID == SETTINGS.MAX_HEADER_LIST_SIZE:
                 conn.maxHeaderListSize = self.value
             else:
                 pass
-            conn.sendFrame(Settings(FLAG.ACK))
+            conn.sendFrame(Settings(flags=FLAG.ACK))
 
     def string(self):
         return "%s\tsetting=%s, value=%d" % \
@@ -286,17 +304,21 @@ class Settings(Http2Header):
 
 
 class Push_Promise(Http2Header):
-    def __init__(self, flags, streamID, promisedID, headers = [], flagment = "", padLen = 0, table = None, wire = ""):
+    def __init__(self, headers, streamID, promisedID, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        self.padLen = kwargs.get("padLen", 0)
+        wire = kwargs.get("wire", "")
+        if self.padLen:
+            flags |= FLAG.PADDING
         super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
-        self.padLen = padLen
         self.headers = headers
         if wire:
-            self.headerFlagment = flagment
+            self.headerFlagment = kwargs.get("flagment", "")
             self.wire = wire[9:]
             self.headerWire = wire[:9]
         else:
-            self.headerFlagment = HPACK.encode(self.headers, False, False, False, table)
+            self.headerFlagment = HPACK.encode(self.headers, False, False, False, kwargs.get("table"))
             self._makeWire()
             self._makeHeaderWire()
 
@@ -321,14 +343,15 @@ class Push_Promise(Http2Header):
         promisedID = struct.unpack(">I", targetData[index:index+4])[0] & 0x7fffffff
         headerFlagment = targetData[index+4: len(targetData) if flags & FLAG.PADDED != FLAG.PADDED else -padLen]
 
-        return Push_Promise(flags, streamID, promisedID, [], headerFlagment, padLen, None, data)
+        return Push_Promise([], streamID, promisedID, flags=flags, 
+                            flagment=headerFlagment, padLen=padLen, wire=data)
 
     def validate(self, conn):
         if self.streamID == 0 or conn.enablePush == 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         state = conn.getStreamState(self.streamID)
         if state != STATE.OPEN and state != STATE.HCLOSED_L:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         conn.addStream(self.promisedID, STATE.RESERVED_R)
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #send data
@@ -341,9 +364,12 @@ class Push_Promise(Http2Header):
 
 
 class Ping(Http2Header):
-    def __init__(self, flags = FLAG.NO, data = "", streamID = 0, wire = ""):
-        super(Ping, self).__init__(TYPE.PING, flags, streamID, len(wire[9:]))
+    def __init__(self, data = "", **kwargs):
+        wire = kwargs.get("wire", "")
+        flags = kwargs.get("flags", FLAG.NO)
+        sID = kwargs.get("streamID", 0)
         self.data = data
+        super(Ping, self).__init__(TYPE.PING, flags, sID, len(wire[9:]))
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -356,25 +382,29 @@ class Ping(Http2Header):
 
     @staticmethod
     def getFrame(flags, streamID, data):
-        return Ping(flags, data[9:17], streamID, data)
+        return Ping(flags = flags, data = data[9:17], streamID = streamID, wire = data)
 
     def validate(self, conn):
         if self.length != 8:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID != 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.ACK != FLAG.ACK:
-            conn.sendFrame(Ping(FLAG.ACK, self.data))
+            conn.sendFrame(Ping(self.data, flags = FLAG.ACK))
 
     def string(self):
         return "%s\tdata=%s" % (super(Ping, self).string(), self.data)
 
 class Goaway(Http2Header):
-    def __init__(self, lastID, errorNum = ERR_CODE.NO_ERROR, debugString = "",  flags = FLAG.NO, streamID = 0, wire = ""):
+    def __init__(self, lastID, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        streamID = kwargs.get("streamID", 0)
+        wire = kwargs.get("wire", "")
         super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
         self.lastID = lastID
-        self.errorNum = errorNum
-        self.debugString = debugString
+        self.err = kwargs.get("err", ERR_CODE.NO_ERROR)
+        print kwargs
+        self.debugString = kwargs.get("debugString", "")
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -384,27 +414,29 @@ class Goaway(Http2Header):
 
     def _makeWire(self):
         self.wire = packHex(self.lastID, 4)
-        self.wire += packHex(self.errorNum, 4)
+        self.wire += packHex(self.err, 4)
         self.wire += self.debugString
 
     @staticmethod
     def getFrame(flags, streamID, data):
-        lastID, errorNum = struct.unpack(">2I", data[9:17])
+        lastID, err = struct.unpack(">2I", data[9:17])
         R = lastID >> 31
         lastID &= 0x7fffffff
-        debugString = upackHex(data[17:])
-        return Goaway(lastID, errorNum, debugString, flags, streamID, data)
+        debugString = data[17:]
+        return Goaway(lastID, err=err, debugString=debugString, flags=flags, streamID=streamID, wire=data)
 
     def validate(self, conn):
         if self.streamID != 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE_PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE_PROTOCOL_ERROR))
 
     def string(self):
-        return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.errorNum), self.debugString)
+        return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.err), self.debugString)
 
 
 class Window_Update(Http2Header):
-    def __init__(self, streamID, windowSizeIncrement, flags = FLAG.NO, wire = ""):
+    def __init__(self, streamID, windowSizeIncrement, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        wire = kwargs,get("wire", "")
         super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
         self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
         if wire:
@@ -420,19 +452,19 @@ class Window_Update(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         windowSizeIncrement = struct.unpack(">I", data[9:13])[0] & 0x7fffffff
-        return Window_Update(streamID, windowSizeIncrement, flags, data)
+        return Window_Update(streamID, windowSizeIncrement, flags=flags, wire=data)
 
     def validate(self, conn):
         if self.length != 4:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FRAME_SIZE_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.windowSizeIncrement <= 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         elif self.windowSizeIncrement > (1 << 31) - 1:
             # suspicious
             if self.streamID == 0:
-                conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.FLOW_CONTROL_ERROR))
+                conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FLOW_CONTROL_ERROR))
             else:
-                conn.sendFrame(Rst_Stream(self.streamID, ERR_CODE.FLOW_CONTROL_ERROR))
+                conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.FLOW_CONTROL_ERROR))
         else:
             #no cool
             conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
@@ -442,9 +474,12 @@ class Window_Update(Http2Header):
 
 
 class Continuation(Http2Header):
-    def __init__(self, flags, streamID, fragment, wire = ""):
+    #def __init__(self, flags, streamID, fragment, wire = ""):
+    def __init__(self, streamID, **kwargs):
+        flags = kwargs.get("flags", FLAG.NO)
+        wire = kwargs.get("wire", "")
         super(Continuation, self).__init__(TYPE.CONTINUATION, flags, streamID, len(wire[9:]))
-        self.headerFragment = fragment
+        self.headerFragment = kwargs.get("fragment", "")
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
@@ -458,11 +493,11 @@ class Continuation(Http2Header):
     @staticmethod
     def getFrame(flags, streamID, data):
         headerFragment = data[9:] #dangerous?
-        return Continuation(flags, streamID, headerFragment, data)
+        return Continuation(streamID, flags=flags, fragment=headerFragment, wire=data)
 
     def validate(self, conn):
         if self.streamID == 0:
-            conn.sendFrame(Goaway(conn.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+            conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             #send data
             conn.initFlagment(self.streamID)

@@ -111,7 +111,7 @@ class Connection(object):
                 print "RECV\n\t%s" % frame.string()
 
                 if self.streams[streamID].continuing and frameType != TYPE.CONTINUATION:
-                    self.sendFrame(Goaway(self.lastStreamID, ERR_CODE.PROTOCOL_ERROR))
+                    self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
                     continue
                 frame.validate(self)
 
