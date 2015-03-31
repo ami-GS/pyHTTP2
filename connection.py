@@ -18,6 +18,7 @@ class Connection(object):
         self.maxFrameSize = SETTINGS.INIT_VALUE["frame_size"]
         self.maxHeaderListSize = SETTINGS.INIT_VALUE["header_list_size"]
         self.initialWindowSize = SETTINGS.INIT_VALUE["window_size"]
+        self.peerSettingACK = False
         self.lastStreamID = 0
         self.addStream(0)
         self.preface = False
@@ -52,6 +53,28 @@ class Connection(object):
             self._send(frame)
 
     def sendFrame(self, frame):
+
+        if frame.frame == TYPE.DATA:
+            pass
+        elif frame.frame == TYPE.HEADERS:
+            pass
+        elif frame.frame == TYPE.PRIORITY:
+            pass
+        elif frame.frame == TYPE.RST_STREAM:
+            pass
+        elif frame.frame == TYPE.SETTINGS:
+            self.peerSettingACK = False
+        elif frame.frame == TYPE.PUSH_PROMISE:
+            pass
+        elif frame.frame == TYPE.PING:
+            pass
+        elif frame.frame == TYPE.GOAWAY:
+            pass
+        elif frame.frame == TYPE.WINDOW_UPDATE:
+            pass
+        elif frame.frame == TYPE.CONTINUATION:
+            pass
+
         print "SEND\n\t%s" % frame.string()
         self._send(frame.getWire())
 

@@ -250,7 +250,6 @@ class Settings(Http2Header):
 
     def _makeWire(self):
         if self.flags & FLAG.ACK == FLAG.ACK:
-            self.wire = ""
             return
         self.wire = packHex(self.settingID, 2) + packHex(self.value, 4)
 
@@ -267,6 +266,8 @@ class Settings(Http2Header):
         if self.flags&FLAG.ACK == FLAG.ACK:
             if self.length != 0:
                 conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
+                return
+            conn.peerSettingACK = True
         elif self.length:
             if self.settingID == SETTINGS.HEADER_TABLE_SIZE:
                 conn.setHeaderTableSize(self.value)
