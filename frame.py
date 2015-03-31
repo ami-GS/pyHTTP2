@@ -2,6 +2,7 @@ import struct
 from util import *
 from settings import *
 import json
+from pyHPACK import HPACK
 
 class Http2Header(object):
     def __init__(self, frame, flags, streamID, length):
@@ -63,7 +64,7 @@ class Data(Http2Header):
         content = targetData[index: -padLen if padLen else len(targetData)]
         return Data(content, streamID, flags=flags, padLen=padLen, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         state = conn.getStreamState(self.streamID)
@@ -73,6 +74,9 @@ class Data(Http2Header):
             conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.STREAM_CLOSED))
         if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\tdata=%s, padding length=%s\n" % \
@@ -133,7 +137,7 @@ class Headers(Http2Header):
         return Headers([], streamID, flags=flags, flagment=headerFlagment, padLen=padLen,
                        E=E, streamDependency=streamDependency, weight=weight, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         state = conn.getStreamState(self.streamID)
         if state == STATE.RESERVED_R:
             conn.setStreamState(self.streamID, STATE.HCLOSED_L)
@@ -147,6 +151,9 @@ class Headers(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
+
+    def sendEval(self, conn):
+        self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
 
     def string(self):
         return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d" % \
@@ -181,11 +188,14 @@ class Priority(Http2Header):
         streamDependency &= 0x7fffffff
         return Priority(streamID, E, streamDependency, weight, flags=flags, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.length != 5:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\tE=%d, stream dependency=%d, weight=%d\n" % \
@@ -211,13 +221,16 @@ class Rst_Stream(Http2Header):
         err = struct.unpack(">I", data[9:])[0]
         return Rst_Stream(streamID, err=err, flags=flags, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.length != 4:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID == 0 or conn.getStreamState(self.streamID) == STATE.IDLE:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         else:
             conn.setStreamState(self.streamID, STATE.CLOSED)
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.err))
@@ -246,7 +259,7 @@ class Settings(Http2Header):
         settingID, value = struct.unpack(">HI", data[:6])
         return Settings(settingID, value, flags=flags, streamID=streamID, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.length % 6 != 0:
@@ -283,6 +296,9 @@ class Settings(Http2Header):
             else:
                 pass
             conn.sendFrame(Settings(flags=FLAG.ACK))
+
+    def sendEval(self, conn):
+        conn.peerSettingACK = False
 
     def string(self):
         return "%s\tsetting=%s, value=%d" % \
@@ -328,7 +344,7 @@ class Push_Promise(Http2Header):
         return Push_Promise([], streamID, promisedID, flags=flags, 
                             flagment=headerFlagment, padLen=padLen, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID == 0 or conn.enablePush == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         state = conn.getStreamState(self.streamID)
@@ -340,6 +356,9 @@ class Push_Promise(Http2Header):
             conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
+
+    def sendEval(self, conn):
+        self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
 
     def string(self):
         return "%s\tpromisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
@@ -364,13 +383,16 @@ class Ping(Http2Header):
     def getFrame(flags, streamID, data):
         return Ping(flags = flags, data = data[9:17], streamID = streamID, wire = data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.length != 8:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.ACK != FLAG.ACK:
             conn.sendFrame(Ping(self.data, flags = FLAG.ACK))
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\tdata=%s" % (super(Ping, self).string(), self.data)
@@ -402,9 +424,12 @@ class Goaway(Http2Header):
         debugString = data[17:]
         return Goaway(lastID, err=err, debugString=debugString, flags=flags, streamID=streamID, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE_PROTOCOL_ERROR))
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.err), self.debugString)
@@ -429,7 +454,7 @@ class Window_Update(Http2Header):
         windowSizeIncrement = struct.unpack(">I", data[9:13])[0] & 0x7fffffff
         return Window_Update(streamID, windowSizeIncrement, flags=flags, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.length != 4:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FRAME_SIZE_ERROR))
         if self.windowSizeIncrement <= 0:
@@ -443,6 +468,9 @@ class Window_Update(Http2Header):
         else:
             #no cool
             conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s\twindow size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)
@@ -467,7 +495,7 @@ class Continuation(Http2Header):
         headerFragment = data[9:] #dangerous?
         return Continuation(streamID, flags=flags, fragment=headerFragment, wire=data)
 
-    def validate(self, conn):
+    def recvEval(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
@@ -475,6 +503,9 @@ class Continuation(Http2Header):
             conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
+
+    def sendEval(self, conn):
+        pass
 
     def string(self):
         return "%s" % (super(Continuation, self).string())

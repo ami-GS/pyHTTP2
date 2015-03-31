@@ -53,28 +53,7 @@ class Connection(object):
             self._send(frame)
 
     def sendFrame(self, frame):
-
-        if frame.type == TYPE.DATA:
-            pass
-        elif frame.type == TYPE.HEADERS:
-            frame.headerFlagment = HPACK.encode(frame.headers, False, False, False, self.table)
-        elif frame.type == TYPE.PRIORITY:
-            pass
-        elif frame.type == TYPE.RST_STREAM:
-            pass
-        elif frame.type == TYPE.SETTINGS:
-            self.peerSettingACK = False
-        elif frame.type == TYPE.PUSH_PROMISE:
-            frame.headerFlagment = HPACK.encode(frame.headers, False, False, False, self.table)
-        elif frame.type == TYPE.PING:
-            pass
-        elif frame.type == TYPE.GOAWAY:
-            pass
-        elif frame.type == TYPE.WINDOW_UPDATE:
-            pass
-        elif frame.type == TYPE.CONTINUATION:
-            pass
-
+        frame.sendEval(self) #TODO: makeWire and send if this returns true
         frame.makeWire()
         print "SEND\n\t%s" % frame.string()
         self._send(frame.getWire())
@@ -137,7 +116,7 @@ class Connection(object):
                 if self.streams[streamID].continuing and frameType != TYPE.CONTINUATION:
                     self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
                     continue
-                frame.validate(self)
+                frame.recvEval(self)
 
     def addStream(self, ID, state = STATE.IDLE):
         self.streams[ID] = Stream(ID, self.initialWindowSize, state)
