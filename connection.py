@@ -54,25 +54,25 @@ class Connection(object):
 
     def sendFrame(self, frame):
 
-        if frame.frame == TYPE.DATA:
+        if frame.type == TYPE.DATA:
             pass
-        elif frame.frame == TYPE.HEADERS:
+        elif frame.type == TYPE.HEADERS:
             pass
-        elif frame.frame == TYPE.PRIORITY:
+        elif frame.type == TYPE.PRIORITY:
             pass
-        elif frame.frame == TYPE.RST_STREAM:
+        elif frame.type == TYPE.RST_STREAM:
             pass
-        elif frame.frame == TYPE.SETTINGS:
+        elif frame.type == TYPE.SETTINGS:
             self.peerSettingACK = False
-        elif frame.frame == TYPE.PUSH_PROMISE:
+        elif frame.type == TYPE.PUSH_PROMISE:
             pass
-        elif frame.frame == TYPE.PING:
+        elif frame.type == TYPE.PING:
             pass
-        elif frame.frame == TYPE.GOAWAY:
+        elif frame.type == TYPE.GOAWAY:
             pass
-        elif frame.frame == TYPE.WINDOW_UPDATE:
+        elif frame.type == TYPE.WINDOW_UPDATE:
             pass
-        elif frame.frame == TYPE.CONTINUATION:
+        elif frame.type == TYPE.CONTINUATION:
             pass
 
         print "SEND\n\t%s" % frame.string()

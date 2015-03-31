@@ -6,7 +6,7 @@ import json
 
 class Http2Header(object):
     def __init__(self, frame, flags, streamID, length):
-        self.frame = frame
+        self.type = frame
         self.flags = flags
         self.streamID = streamID
         self.length = length
@@ -15,7 +15,7 @@ class Http2Header(object):
 
     def _makeHeaderWire(self):
         self.length = len(self.wire)
-        self.headerWire = struct.pack(">I2BI", self.length, self.frame, self.flags, self.streamID)[1:]
+        self.headerWire = struct.pack(">I2BI", self.length, self.type, self.flags, self.streamID)[1:]
 
     def setLength(self, length):
         self.length = length
@@ -30,7 +30,7 @@ class Http2Header(object):
 
     def string(self):
         return "Header: type=%s, flags={%s}, streamID=%d, length=%d\n" % \
-            (TYPE.string(self.frame), FLAG.string(self.flags), self.streamID, self.length)
+            (TYPE.string(self.type), FLAG.string(self.flags), self.streamID, self.length)
 
 class Data(Http2Header):
     def __init__(self, data, streamID, **kwargs):
