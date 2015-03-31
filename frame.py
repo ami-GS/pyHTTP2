@@ -63,7 +63,7 @@ class Data(Http2Header):
         if flags&FLAG.PADDED == FLAG.PADDED:
             padLen = struct.unpack(">B", targetData[0])[0]
             index += 1
-        content = targetData[index: len(targetData) if flags != FLAG.PADDED else -padLen]
+        content = targetData[index: -padLen if padLen else len(targetData)]
         return Data(content, streamID, flags=flags, padLen=padLen, wire=data)
 
     def validate(self, conn):
@@ -134,10 +134,7 @@ class Headers(Http2Header):
             E = streamDependenct >> 31
             streamDependency &= 0x7fffffff
             index += 5
-        if padLen:
-            headerFlagment = targetData[index:-padLen]
-        else:
-            headerFlagment = targetData[index:]
+        headerFlagment = targetData[index: -padLen if padLen else len(targetData)]
 
         return Headers([], streamID, flags=flags, flagment=headerFlagment, padLen=padLen,
                        E=E, streamDependency=streamDependency, weight=weight, wire=data)
@@ -338,10 +335,9 @@ class Push_Promise(Http2Header):
         padLen = 0
         if flags & FLAG.PADDED == FLAG.PADDED:
             padLen = struct.unpack(">B", targetData[0])[0]
-            padding = targetData[-padlen:]
             index += 1
         promisedID = struct.unpack(">I", targetData[index:index+4])[0] & 0x7fffffff
-        headerFlagment = targetData[index+4: len(targetData) if flags & FLAG.PADDED != FLAG.PADDED else -padLen]
+        headerFlagment = targetData[index+4: -padLen if padLen else len(targetData)]
 
         return Push_Promise([], streamID, promisedID, flags=flags, 
                             flagment=headerFlagment, padLen=padLen, wire=data)
