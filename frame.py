@@ -1,7 +1,6 @@
 import struct
 from util import *
 from settings import *
-from pyHPACK import HPACK
 import json
 
 class Http2Header(object):
@@ -44,16 +43,14 @@ class Data(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         padding = ""
         if self.flags&FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
             padding += packHex(0, self.padLen)
         self.wire += self.data + padding
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -99,12 +96,8 @@ class Headers(Http2Header):
             self.headerFlagment = kwargs.get("flagment", "")
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self.headerFlagment = HPACK.encode(self.headers, False, False, False, kwargs.get("table"))
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         padding = ""
         if self.flags&FLAG.PADDED == FLAG.PADDED:
             self.wire += packHex(self.padLen, 1)
@@ -116,6 +109,7 @@ class Headers(Http2Header):
                 self.wire += packHex(self.streamDependency, 4)
             self.wire += packHex(self.weight, 1)
         self.wire += self.headerFlagment + padding
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -170,16 +164,14 @@ class Priority(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         if self.E:
             self.wire = packHex(self.streamDependency | 0x80000000, 4)
         else:
             self.wire = packHex(self.streamDependency, 4)
         self.wire += packHex(self.weight, 1)
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -209,12 +201,10 @@ class Rst_Stream(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = packHex(self.err, 4)
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -244,14 +234,12 @@ class Settings(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         if self.flags & FLAG.ACK == FLAG.ACK:
             return
         self.wire = packHex(self.settingID, 2) + packHex(self.value, 4)
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -315,12 +303,8 @@ class Push_Promise(Http2Header):
             self.headerFlagment = kwargs.get("flagment", "")
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self.headerFlagment = HPACK.encode(self.headers, False, False, False, kwargs.get("table"))
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = ""
         padding = ""
         if self.flags & FLAG.PADDED == FLAG.PADDED:
@@ -328,6 +312,7 @@ class Push_Promise(Http2Header):
             padding = packHex(0, self.padLen)
         self.wire += packHex(self.promisedID, 4)
         self.wire += self.headerFlagment + padding
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -370,12 +355,10 @@ class Ping(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = packHex(self.data, 8)
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -404,14 +387,12 @@ class Goaway(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = packHex(self.lastID, 4)
         self.wire += packHex(self.err, 4)
         self.wire += self.debugString
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -438,12 +419,10 @@ class Window_Update(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = packHex(self.windowSizeIncrement, 4)
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):
@@ -478,12 +457,10 @@ class Continuation(Http2Header):
         if wire:
             self.wire = wire[9:]
             self.headerWire = wire[:9]
-        else:
-            self._makeWire()
-            self._makeHeaderWire()
 
-    def _makeWire(self):
+    def makeWire(self):
         self.wire = self.headerFragment
+        self._makeHeaderWire()
 
     @staticmethod
     def getFrame(flags, streamID, data):

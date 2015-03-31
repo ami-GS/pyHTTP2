@@ -3,7 +3,7 @@ from stream import Stream
 import socket
 import struct
 from util import *
-from pyHPACK.HPACK import decode
+from pyHPACK import HPACK
 from pyHPACK.tables import Table
 from frame import *
 
@@ -57,7 +57,7 @@ class Connection(object):
         if frame.type == TYPE.DATA:
             pass
         elif frame.type == TYPE.HEADERS:
-            pass
+            frame.headerFlagment = HPACK.encode(frame.headers, False, False, False, self.table)
         elif frame.type == TYPE.PRIORITY:
             pass
         elif frame.type == TYPE.RST_STREAM:
@@ -65,7 +65,7 @@ class Connection(object):
         elif frame.type == TYPE.SETTINGS:
             self.peerSettingACK = False
         elif frame.type == TYPE.PUSH_PROMISE:
-            pass
+            frame.headerFlagment = HPACK.encode(frame.headers, False, False, False, self.table)
         elif frame.type == TYPE.PING:
             pass
         elif frame.type == TYPE.GOAWAY:
@@ -75,6 +75,7 @@ class Connection(object):
         elif frame.type == TYPE.CONTINUATION:
             pass
 
+        frame.makeWire()
         print "SEND\n\t%s" % frame.string()
         self._send(frame.getWire())
 
@@ -115,7 +116,7 @@ class Connection(object):
 
         if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             stream = self.streams[streamID]
-            frame.headers = decode(stream.headerFlagment + frame.headerFlagment, self.table)
+            frame.headers = HPACK.decode(stream.headerFlagment + frame.headerFlagment, self.table)
             stream.initFlagment()
 
         return frame
