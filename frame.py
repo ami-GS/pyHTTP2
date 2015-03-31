@@ -140,7 +140,7 @@ class Headers(Http2Header):
             headerFlagment = targetData[index:]
 
         return Headers([], streamID, flags=flags, flagment=headerFlagment, padLen=padLen,
-                       E=E, straemDependency=streamDependency, weight=weight, wire=data)
+                       E=E, streamDependency=streamDependency, weight=weight, wire=data)
 
     def validate(self, conn):
         state = conn.getStreamState(self.streamID)
@@ -473,7 +473,6 @@ class Window_Update(Http2Header):
 
 
 class Continuation(Http2Header):
-    #def __init__(self, flags, streamID, fragment, wire = ""):
     def __init__(self, streamID, **kwargs):
         flags = kwargs.get("flags", FLAG.NO)
         wire = kwargs.get("wire", "")
