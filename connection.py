@@ -138,8 +138,8 @@ class Connection(object):
                     continue
                 frame.validate(self)
 
-    def addStream(self, stream, state = STATE.IDLE):
-        self.streams[stream] = Stream(stream, self, state)
+    def addStream(self, ID, state = STATE.IDLE):
+        self.streams[ID] = Stream(ID, self.initialWindowSize, state)
 
     def setHeaderTableSize(self, size):
         self.table.setMaxHeaderTableSize(size)

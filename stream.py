@@ -3,11 +3,10 @@ from settings import *
 from util import *
 
 class Stream():
-    def __init__(self, stream_id, connection, state):
-        self.sId = stream_id
-        self.connection = connection
+    def __init__(self, streamID, windowSize, state):
+        self.ID = streamID
         self.state = state
-        self.windowSize = connection.initialWindowSize
+        self.windowSize = windowSize
         self.headerFlagment = ""
         self.continuing = False
 
