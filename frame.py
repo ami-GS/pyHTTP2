@@ -154,6 +154,11 @@ class Headers(Http2Header):
 
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
+        state = conn.getStreamState(self.streamID)
+        if state == STATE.IDLE:
+            conn.setStreamState(self.streamID, STATE.OPEN)
+        elif state == STATE.RESERVED_L:
+            conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
     def string(self):
         return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d" % \
@@ -230,7 +235,7 @@ class Rst_Stream(Http2Header):
             conn.setStreamState(self.streamID, STATE.CLOSED)
 
     def sendEval(self, conn):
-        pass
+        conn.setStreamState(self.streamID, STATE.CLOSED)
 
     def string(self):
         return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.err))
@@ -359,6 +364,8 @@ class Push_Promise(Http2Header):
 
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
+        if conn.getStreamState(self.streamID) == STATE.IDLE:
+            conn.setStreamState(self.streamID, STATE.RESERVED_L)
 
     def string(self):
         return "%s\tpromisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
