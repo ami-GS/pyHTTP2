@@ -1,7 +1,3 @@
-import struct
-from settings import *
-from util import *
-
 class Stream():
     def __init__(self, streamID, windowSize, state):
         self.ID = streamID

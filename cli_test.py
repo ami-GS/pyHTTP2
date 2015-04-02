@@ -1,6 +1,5 @@
 from settings import *
 import sys
-from binascii import hexlify
 import time
 from client import Client
 from threading import Thread

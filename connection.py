@@ -1,7 +1,6 @@
 from settings import *
 from stream import Stream
 import socket
-import struct
 from util import *
 from pyHPACK import HPACK
 from pyHPACK.tables import Table

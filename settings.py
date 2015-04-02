@@ -171,6 +171,3 @@ class STATE():
             return "closed"
         else:
             return "WARNNING: undefined state"
-
-
-INITIAL_STREAM_STATE = {"state":STATE.IDLE, "header":[True,""],"windowSize":65535}
