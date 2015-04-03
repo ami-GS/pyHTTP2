@@ -74,9 +74,10 @@ class Data(Http2Header):
             conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.STREAM_CLOSED))
         if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
+        conn.useWindow(self.streamID, len(self.data)*8)
 
     def sendEval(self, conn):
-        pass
+        conn.useWindow(self.streamID, len(self.data)*8)
 
     def string(self):
         return "%s\tdata=%s, padding length=%s\n" % \
@@ -290,7 +291,7 @@ class Settings(Http2Header):
                 if self.value > MAX_WINDOW_SIZE:
                     conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.FLOW_CONTROL_ERROR))
                 else:
-                    conn.initialWindowSize = self.value
+                    conn.setInitialWindowSize(self.value)
             elif self.settingID == SETTINGS.MAX_FRAME_SIZE:
                 if INITIAL_MAX_FRAME_SIZE <= self.value <= LIMIT_MAX_FRAME_SIZE:
                     conn.maxFrameSize = self.value
@@ -473,11 +474,10 @@ class Window_Update(Http2Header):
             else:
                 conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.FLOW_CONTROL_ERROR))
         else:
-            #no cool
-            conn.streams[self.streamID].setWindowSize(self.windowSizeIncrement)
+            conn.recoverWindow(self.streamID, self.windowSizeIncrement)
 
     def sendEval(self, conn):
-        pass
+        conn.recoverWindow(self.streamID, self.windowSizeIncrement)
 
     def string(self):
         return "%s\twindow size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)

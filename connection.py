@@ -128,3 +128,15 @@ class Connection(object):
 
     def setHeaderTableSize(self, size):
         self.table.setMaxHeaderTableSize(size)
+
+    def useWindow(self, ID, size):
+        self.streams[0].useWindow(size)
+        self.streams[ID].useWindow(size)
+
+    def recoverWindow(self, ID, size):
+        self.streams[ID].recoverWindow(size)
+
+    def setInitialWindowSize(self, size):
+        for ID in self.streams:
+            if self.stream[ID].state != STATE.IDLE:
+                self.stream[ID].setInitialWindowSize(size)
