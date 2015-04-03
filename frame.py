@@ -130,7 +130,7 @@ class Headers(Http2Header):
             index += 1
         if flags&FLAG.PRIORITY == FLAG.PRIORITY:
             streamDependency, weight = struct.unpack(">IB", targetData[index:index+5])
-            E = streamDependenct >> 31
+            E = streamDependency >> 31
             streamDependency &= 0x7fffffff
             index += 5
         headerFlagment = targetData[index: -padLen if padLen else len(targetData)]
@@ -156,6 +156,10 @@ class Headers(Http2Header):
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
         state = conn.getStreamState(self.streamID)
+        #TODO:this should be implemented in connection
+        if self.flags&FLAG.PRIORITY == FLAG.PRIORITY:
+            conn.streams[self.streamID].weight = self.weight
+            conn.streams[self.streamID].setParentStream(self.E, conn.streams[self.streamDependency])
         if state == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.OPEN)
         elif state == STATE.RESERVED_L:
