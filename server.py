@@ -32,6 +32,7 @@ class Server():
                 self.clients[addr[0]] = client
 
             t = Thread(target=client.worker)
+            t.setDaemon(True)
             t.start()
 
 class Client(Connection):
@@ -42,8 +43,10 @@ class Client(Connection):
         self.addStream(self.lastId)
 
     def worker(self):
-        while True:
-            self.validateData()
+        while self.validateData():
+            pass
+        else:
+            pass
 
     def recv(self):
         return self._recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)

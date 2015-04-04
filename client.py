@@ -16,6 +16,7 @@ class Client(Connection):
         self.lastId = 1
         self.addStream(self.lastId)
         self.t = Thread(target=self.__receiver)
+        self.t.setDaemon(True)
         self.t.start()
 
     def notifyHTTP2(self):
@@ -23,7 +24,10 @@ class Client(Connection):
 
     def __receiver(self):
         try:
-            while True:
-                self.validateData()
+            while self.validateData():
+                pass
+            else:
+                pass
+
         except Exception as e:
             return

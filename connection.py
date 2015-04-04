@@ -97,6 +97,8 @@ class Connection(object):
             frame = Window_Update.getFrame(flags, streamID, data)
         elif frameType == TYPE.CONTINUATION:
             frame = Continuation.getFrame(flags, streamID, data)
+        else:
+            print "WARNNING: undefined frame type"
 
         if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
             stream = self.streams[streamID]
@@ -107,8 +109,10 @@ class Connection(object):
     def validateData(self):
         if self.preface:
             headerOctet = self._recv(9)
-            if len(headerOctet) != 9:
-                return
+            if len(headerOctet) == 0:
+                # when connection closed from client
+                self.preface = False
+                return False
             length, frameType, flags, streamID = Http2Header.getHeaderInfo(headerOctet)
             if not self.streams.has_key(streamID):
                 self.addStream(streamID)
@@ -121,6 +125,7 @@ class Connection(object):
             data = self._recv(24)
             if data == CONNECTION_PREFACE:
                 self.preface = True
+        return True
 
     def addStream(self, ID, state = STATE.IDLE):
         self.streams[ID] = Stream(ID, self.initialWindowSize, state)
