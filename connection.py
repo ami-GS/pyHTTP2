@@ -104,24 +104,23 @@ class Connection(object):
             stream.initFlagment()
 
         return frame
-
-    def validateData(self, data):
-        if data.startswith(CONNECTION_PREFACE):
-            self.preface = True
-            data = data.lstrip(CONNECTION_PREFACE)
+    def validateData(self):
         if self.preface:
-            while data:
-                length, frameType, flags, streamID = Http2Header.getHeaderInfo(data[:9])
-                if not self.streams.has_key(streamID):
-                    self.addStream(streamID)
-                frame = self.getFrame(frameType, flags, streamID, data[:9+length])
-                data = data[9+length:]
-                print "RECV\n\t%s" % frame.string()
-
-                if self.streams[streamID].continuing and frameType != TYPE.CONTINUATION:
-                    self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
-                    continue
-                frame.recvEval(self)
+            headerOctet = self._recv(9)
+            if len(headerOctet) != 9:
+                return
+            length, frameType, flags, streamID = Http2Header.getHeaderInfo(headerOctet)
+            if not self.streams.has_key(streamID):
+                self.addStream(streamID)
+            frame = self.getFrame(frameType, flags, streamID, headerOctet+self._recv(length))
+            print "RECV\n\t%s" % frame.string()
+            if self.streams[streamID].continuing and frameType != TYPE.CONTINUATION:
+                self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
+            frame.recvEval(self)
+        else:
+            data = self._recv(24)
+            if data == CONNECTION_PREFACE:
+                self.preface = True
 
     def addStream(self, ID, state = STATE.IDLE):
         self.streams[ID] = Stream(ID, self.initialWindowSize, state)

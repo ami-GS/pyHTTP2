@@ -42,10 +42,8 @@ class Client(Connection):
         self.addStream(self.lastId)
 
     def worker(self):
-        data = self.recv()
-        while len(data):
-            self.validateData(data)
-            data = self.recv()
+        while True:
+            self.validateData()
 
     def recv(self):
         return self._recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
