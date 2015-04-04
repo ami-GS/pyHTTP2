@@ -266,7 +266,7 @@ class Settings(Http2Header):
 
     @staticmethod
     def getFrame(flags, streamID, data):
-        settingID, value = struct.unpack(">HI", data[:6])
+        settingID, value = struct.unpack(">HI", data[9:15])
         return Settings(settingID, value, flags=flags, streamID=streamID, wire=data)
 
     def recvEval(self, conn):
