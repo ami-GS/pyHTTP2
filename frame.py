@@ -125,7 +125,7 @@ class Headers(Http2Header):
         streamDependency = 0
         weight = 0
         if flags&FLAG.PADDED == FLAG.PADDED:
-            padLen = struct,unpack(">B", targetData[0])[0]
+            padLen = struct.unpack(">B", targetData[0])[0]
             padding = targetData[-padLen:]
             index += 1
         if flags&FLAG.PRIORITY == FLAG.PRIORITY:
