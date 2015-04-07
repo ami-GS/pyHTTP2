@@ -104,8 +104,8 @@ class Connection(object):
             stream = self.streams[streamID]
             frame.headers = HPACK.decode(stream.headerFlagment + frame.headerFlagment, self.table)
             stream.initFlagment()
-
         return frame
+
     def validateData(self):
         if self.preface:
             headerOctet = self._recv(9)
@@ -114,7 +114,7 @@ class Connection(object):
                 self.preface = False
                 return False
             length, frameType, flags, streamID = Http2Header.getHeaderInfo(headerOctet)
-            if not self.streams.has_key(streamID):
+            if not self.streams.get(streamID, ''):
                 self.addStream(streamID)
             frame = self.getFrame(frameType, flags, streamID, headerOctet+self._recv(length))
             print "RECV\n\t%s" % frame.string()
