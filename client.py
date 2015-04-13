@@ -20,6 +20,7 @@ class Client(Connection):
         self.t.start()
 
     def notifyHTTP2(self):
+        self.preface = True
         self._send(CONNECTION_PREFACE)
 
     def __receiver(self):
