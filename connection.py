@@ -60,7 +60,7 @@ class Connection(object):
             elif state == STATE.HCLOSED_R:
                 self.setStreamState(frame.streamID, STATE.CLOSED)
         frame.makeWire()
-        print "SEND\n\t%s" % frame.string()
+        print "%s\n\t%s" % (sendC.apply("SEND"), frame.string())
         self._send(frame.getWire())
 
     def setStreamState(self, ID, state):
@@ -117,7 +117,7 @@ class Connection(object):
                 frame.headers = HPACK.decode(
                     stream.headerFlagment+frame.headerFlagment, self.table)
                 stream.initFlagment()
-            print "RECV\n\t%s" % frame.string()
+            print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
             if stream.continuing and frameType != TYPE.CONTINUATION:
                 self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
             frame.recvEval(self)

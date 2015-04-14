@@ -1,9 +1,19 @@
+from soac import soac
+
 LIMIT_MAX_FRAME_SIZE = (1 << 24) - 1
 INITIAL_MAX_FRAME_SIZE = 1 << 14
 MAX_WINDOW_SIZE = (1 << 31) - 1
 FRAME_HEADER_SIZE = 9
 
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+
+recvC = soac.Changer()
+recvC.red().underline()
+sendC = soac.Changer()
+sendC.cyan().underline()
+frameC = soac.Changer()
+frameC.green()
+
 
 class TYPE():
     DATA = 0x00

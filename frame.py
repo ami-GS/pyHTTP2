@@ -30,7 +30,7 @@ class Http2Header(object):
 
     def string(self):
         return "Header: type=%s, flags={%s}, streamID=%d, length=%d\n" % \
-            (TYPE.string(self.type), FLAG.string(self.flags), self.streamID, self.length)
+            (frameC.apply(TYPE.string(self.type)), FLAG.string(self.flags), self.streamID, self.length)
 
 class Data(Http2Header):
     def __init__(self, data, streamID, **kwargs):
