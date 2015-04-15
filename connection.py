@@ -7,7 +7,7 @@ from pyHPACK.tables import Table
 from frame import *
 
 class Connection(object):
-    def __init__(self, sock, addr, enable_tls, debug):
+    def __init__(self, sock, addr, enable_tls, debug, is_client = False):
         self.setSocket(sock, enable_tls)
         self.addr = addr
         self.table = Table()
@@ -20,7 +20,7 @@ class Connection(object):
         self.peerSettingACK = False
         self.lastStreamID = 0
         self.addStream(0)
-        self.preface = False
+        self.preface = is_client
         # temporaly using
         self.wireLenLimit = 24
         self.debug = debug

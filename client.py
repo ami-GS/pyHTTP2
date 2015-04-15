@@ -12,7 +12,7 @@ class Client(Connection):
             self.sock.connect(addr)
         else:
             self.sock = socket.create_connection(addr, 5)
-        super(Client, self).__init__(self.sock, addr, enable_tls, debug)
+        super(Client, self).__init__(self.sock, addr, enable_tls, debug, True)
         self.lastId = 1
         self.addStream(self.lastId)
         self.t = Thread(target=self.__receiver)
@@ -20,7 +20,6 @@ class Client(Connection):
         self.t.start()
 
     def notifyHTTP2(self):
-        self.preface = True
         self._send(CONNECTION_PREFACE)
 
     def __receiver(self):
