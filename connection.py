@@ -75,31 +75,6 @@ class Connection(object):
     def appendFlagment(self, ID, flagment):
         self.streams[ID].appendFlagment(flagment)
 
-    def getFrameFunc(self, frameType):
-        if frameType == TYPE.DATA:
-            return Data.getFrame
-        elif frameType == TYPE.HEADERS:
-            return Headers.getFrame
-        elif frameType == TYPE.PRIORITY:
-            return Priority.getFrame
-        elif frameType == TYPE.RST_STREAM:
-            return Rst_Stream.getFrame
-        elif frameType == TYPE.SETTINGS:
-            return Settings.getFrame
-        elif frameType == TYPE.PUSH_PROMISE:
-            return Push_Promise.getFrame
-        elif frameType == TYPE.PING:
-            return Ping.getFrame
-        elif frameType == TYPE.GOAWAY:
-            return Goaway.getFrame
-        elif frameType == TYPE.WINDOW_UPDATE:
-            return Window_Update.getFrame
-        elif frameType == TYPE.CONTINUATION:
-            return Continuation.getFrame
-        else:
-            print "WARNNING: undefined frame type"
-            return #raise
-
     def validateData(self):
         if self.preface:
             headerOctet = self._recv(9)

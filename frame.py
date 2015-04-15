@@ -4,6 +4,31 @@ from settings import *
 import json
 from pyHPACK import HPACK
 
+def getFrameFunc(frame_type):
+    if frame_type == TYPE.DATA:
+        return Data.getFrame
+    elif frame_type == TYPE.HEADERS:
+        return Headers.getFrame
+    elif frame_type == TYPE.PRIORITY:
+        return Priority.getFrame
+    elif frame_type == TYPE.RST_STREAM:
+        return Rst_Stream.getFrame
+    elif frame_type == TYPE.SETTINGS:
+        return Settings.getFrame
+    elif frame_type == TYPE.PUSH_PROMISE:
+        return Push_Promise.getFrame
+    elif frame_type == TYPE.PING:
+        return Ping.getFrame
+    elif frame_type == TYPE.GOAWAY:
+        return Goaway.getFrame
+    elif frame_type == TYPE.WINDOW_UPDATE:
+        return Window_Update.getFrame
+    elif frame_type == TYPE.CONTINUATION:
+        return Continuation.getFrame
+    else:
+        print "WARNNING: undefined frame type"
+        return #raise
+
 class Http2Header(object):
     def __init__(self, frame, flags, streamID, length):
         self.type = frame
