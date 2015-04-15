@@ -83,11 +83,16 @@ class Connection(object):
                 self.preface = False
                 return False
             length, frameType, flags, streamID = Http2Header.getHeaderInfo(headerOctet)
-            if not self.streams.get(streamID, ''):
+            stream = self.streams.get(streamID, '')
+            if not stream:
                 self.addStream(streamID)
-            frameFunc = self.getFrameFunc(frameType)
+                stream = self.streams[streamID]
+            if (stream.getState() == STATE.CLOSED and
+                frameType != TYPE.PRIORITY and
+                frameType != TYPE.RST_STREAM):
+                self.sendFrame(Rst_Stream(streamID, err=ERR_CODE.STREAM_CLOSED))
+            frameFunc = getFrameFunc(frameType)
             frame = frameFunc(flags, streamID, headerOctet+self._recv(length))
-            stream = self.streams[streamID]
             if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                 frame.headers = HPACK.decode(
                     stream.headerFlagment+frame.headerFlagment, self.table)
