@@ -12,8 +12,7 @@ python cli_test.py <server ip> <server port>
 ```
 
 ### TODO  
-* reconstruct frame in each type
-* imeplement window update function
+* send arbitrary frame while connecting
 
 #### License
 The MIT License (MIT) Copyright (c) 2014 ami-GS
