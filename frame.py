@@ -177,6 +177,7 @@ class Headers(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
+        conn.lastStreamID = self.streamID
 
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
@@ -464,9 +465,11 @@ class Goaway(Http2Header):
     def recvEval(self, conn):
         if self.streamID != 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE_PROTOCOL_ERROR))
+        #here?
+        conn.sock.close()
 
     def sendEval(self, conn):
-        pass
+        conn.is_goaway = True
 
     def string(self):
         return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.err), self.debugString)
