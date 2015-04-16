@@ -24,12 +24,8 @@ class Server():
                                             keyfile = "server.key",
                                             ssl_version = ssl.PROTOCOL_SSLv3)
 
-            if self.clients.has_key(addr[0]):
-                client = self.clients[addr[0]]
-                client.setSocket(sock, enable_tls)
-            else:
-                client = Client(sock, addr, enable_tls, self.debug)
-                self.clients[addr[0]] = client
+            client = Client(sock, addr, enable_tls, self.debug)
+            self.clients[addr[0]] = client
 
             t = Thread(target=client.worker)
             t.setDaemon(True)
