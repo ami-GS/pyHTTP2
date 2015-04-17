@@ -83,30 +83,30 @@ class Connection(object):
                 # when connection closed from client
                 self.preface = False
                 return False
-            length, frameType, flags, streamID = Http2Header.getHeaderInfo(headerOctet)
-            if not self.is_goaway or self.is_goaway and (frameType == TYPE.HEADERS or
-                                                         frameType == TYPE.PRIORITY or
-                                                         frameType == TYPE.CONTINUATION):
-                stream = self.streams.get(streamID, '')
+            info = Http2Header.getHeaderInfo(headerOctet)
+            if not self.is_goaway or self.is_goaway and (info.type == TYPE.HEADERS or
+                                                         info.type == TYPE.PRIORITY or
+                                                         info.type == TYPE.CONTINUATION):
+                stream = self.streams.get(info.streamID, '')
                 if not stream:
-                    self.addStream(streamID)
-                    stream = self.streams[streamID]
+                    self.addStream(info.streamID)
+                    stream = self.streams[info.streamID]
                 if (stream.getState() == STATE.CLOSED and
-                    frameType != TYPE.PRIORITY and
-                    frameType != TYPE.RST_STREAM):
-                    self.sendFrame(Rst_Stream(streamID, err=ERR_CODE.STREAM_CLOSED))
-                frameFunc = getFrameFunc(frameType)
-                frame = frameFunc(flags, streamID, headerOctet+self._recv(length))
-                if flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+                    info.type != TYPE.PRIORITY and
+                    info.type != TYPE.RST_STREAM):
+                    self.sendFrame(Rst_Stream(info.streamID, err=ERR_CODE.STREAM_CLOSED))
+                frameFunc = getFrameFunc(info.type)
+                frame = frameFunc(info, self._recv(info.length))
+                if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                     frame.headers = HPACK.decode(
                         stream.headerFlagment+frame.headerFlagment, self.table)
                     stream.initFlagment()
                 print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
-                if stream.continuing and frameType != TYPE.CONTINUATION:
+                if stream.continuing and info.type != TYPE.CONTINUATION:
                     self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
                 frame.recvEval(self)
             else:
-                self._recv(length)
+                self._recv(info.length)
         else:
             data = self._recv(24)
             if data == CONNECTION_PREFACE:

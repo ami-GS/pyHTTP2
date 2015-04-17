@@ -30,13 +30,18 @@ def getFrameFunc(frame_type):
         return #raise
 
 class Http2Header(object):
-    def __init__(self, frame, flags, streamID, length):
-        self.type = frame
-        self.flags = flags
-        self.streamID = streamID
-        self.length = length
-        self.wire = ""
-        self.headerWire = ""
+    def __init__(self, frame=None, flags=None, streamID=0, length=0, info=None, **kwargs):
+        if info:
+            self.type = info.type
+            self.flags = info.flags
+            self.streamID = info.streamID
+            self.length = info.length
+        else:
+            self.type = frame
+            self.flags = flags
+            self.streamID = streamID
+            self.length = length
+        self.headerWire = kwargs.get("headerWire", "")
 
     def _makeHeaderWire(self):
         self.length = len(self.wire)
@@ -51,7 +56,7 @@ class Http2Header(object):
     @staticmethod
     def getHeaderInfo(data):
         length, frame, flags, streamID = struct.unpack(">I2BI", "\x00"+data)
-        return length, frame, flags, streamID
+        return Http2Header(frame, flags, streamID, length, headerWire=data)
 
     def string(self):
         return "Header: type=%s, flags={%s}, streamID=%d, length=%d\n" % \
@@ -61,14 +66,15 @@ class Data(Http2Header):
     def __init__(self, data, streamID, **kwargs):
         self.padLen = kwargs.get("padLen", 0)
         self.data = data
-        flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs.get("wire", "")
-        if self.padLen:
-            flags |= FLAG.PADDING
-        super(Data, self).__init__(TYPE.DATA, flags, streamID, len(wire[9:]))
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", "")
+        if info:
+            super(Data, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            if self.padLen:
+                flags |= FLAG.PADDING
+            super(Data, self).__init__(TYPE.DATA, flags, streamID, len(self.wire))
 
     def makeWire(self):
         padding = ""
@@ -79,15 +85,14 @@ class Data(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        targetData = data[9:]
+    def getFrame(info, data):
         index = 0
         padLen = 0
-        if flags&FLAG.PADDED == FLAG.PADDED:
-            padLen = struct.unpack(">B", targetData[0])[0]
+        if info.flags&FLAG.PADDED == FLAG.PADDED:
+            padLen = struct.unpack(">B", data[0])[0]
             index += 1
-        content = targetData[index: -padLen if padLen else len(targetData)]
-        return Data(content, streamID, flags=flags, padLen=padLen, wire=data)
+        content = data[index: -padLen if padLen else len(data)]
+        return Data(content, info.streamID, info=info, padLen=padLen, wire=data)
 
     def recvEval(self, conn):
         if self.streamID == 0:
@@ -110,22 +115,23 @@ class Data(Http2Header):
 
 class Headers(Http2Header):
     def __init__(self, headers, streamID, **kwargs):
+        self.headers = headers
         self.padLen = kwargs.get("padLen", 0)
         self.E = kwargs.get("E", 0)
         self.streamDependency = kwargs.get("streamDependency", 0)
         self.weight = kwargs.get("weight", 0)
-        flags = kwargs.get("flags", FLAG.NO)
-        wire  = kwargs.get("wire", "")
-        if self.padLen:
-            flags |= FLAG.PADDING
-        if self.streamDependency:
-            flags |= FLAG.PRIORITY
-        super(Headers, self).__init__(TYPE.HEADERS, flags, streamID, len(wire[9:]))
-        self.headers = headers
-        if wire:
-            self.headerFlagment = kwargs.get("flagment", "")
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.headerFlagment = kwargs.get("flagment", "")
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Headers, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            if self.padLen:
+                flags |= FLAG.PADDING
+            if self.streamDependency:
+                flags |= FLAG.PRIORITY
+            super(Headers, self).__init__(TYPE.HEADERS, flags, streamID, len(self.wire))
 
     def makeWire(self):
         padding = ""
@@ -142,25 +148,24 @@ class Headers(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        targetData = data[9:]
+    def getFrame(info, data):
         index = 0
         padLen = 0
         E = 0
         streamDependency = 0
         weight = 0
-        if flags&FLAG.PADDED == FLAG.PADDED:
-            padLen = struct.unpack(">B", targetData[0])[0]
-            padding = targetData[-padLen:]
+        if info.flags&FLAG.PADDED == FLAG.PADDED:
+            padLen = struct.unpack(">B", data[0])[0]
+            padding = data[-padLen:]
             index += 1
-        if flags&FLAG.PRIORITY == FLAG.PRIORITY:
-            streamDependency, weight = struct.unpack(">IB", targetData[index:index+5])
+        if info.flags&FLAG.PRIORITY == FLAG.PRIORITY:
+            streamDependency, weight = struct.unpack(">IB", data[index:index+5])
             E = streamDependency >> 31
             streamDependency &= 0x7fffffff
             index += 5
-        headerFlagment = targetData[index: -padLen if padLen else len(targetData)]
+        headerFlagment = data[index: -padLen if padLen else len(data)]
 
-        return Headers([], streamID, flags=flags, flagment=headerFlagment, padLen=padLen,
+        return Headers([], info.streamID, info=info, flagment=headerFlagment, padLen=padLen,
                        E=E, streamDependency=streamDependency, weight=weight, wire=data)
 
     def recvEval(self, conn):
@@ -198,15 +203,16 @@ class Headers(Http2Header):
 
 class Priority(Http2Header):
     def __init__(self, streamID, E, streamDependency, weight, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs.get("wire", "")
-        super(Priority, self).__init__(TYPE.PRIORITY, flags, streamID, len(wire[9:]))
-        self.E = E
-        self.streamDependency = streamDependency
-        self.weight = self.weight
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Priority, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            super(Priority, self).__init__(TYPE.PRIORITY, flags, streamID, len(self.wire))
+            self.E = E
+            self.streamDependency = streamDependency
+            self.weight = self.weight
 
     def makeWire(self):
         if self.E:
@@ -217,12 +223,11 @@ class Priority(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        targetData = data[9:]
-        streamDependency, weight = struct.unpack(">IB", targetData[:5])
+    def getFrame(info, data):
+        streamDependency, weight = struct.unpack(">IB", data[:5])
         E = streamDependency >> 31
         streamDependency &= 0x7fffffff
-        return Priority(streamID, E, streamDependency, weight, flags=flags, wire=data)
+        return Priority(info.streamID, E, streamDependency, weight, info=info, wire=data)
 
     def recvEval(self, conn):
         if self.streamID == 0:
@@ -240,22 +245,23 @@ class Priority(Http2Header):
 
 class Rst_Stream(Http2Header):
     def __init__(self, streamID, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
+        self.wire = kwargs.get("wire", "")
         self.err = kwargs.get("err", ERR_CODE.NO_ERROR)
-        wire = kwargs.get("wire", "")
-        super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(wire[9:]))
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        info = kwargs.get("info", None)
+        if info:
+            super(Rst_Stream, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            super(Rst_Stream, self).__init__(TYPE.RST_STREAM, flags, streamID, len(self.wire))
 
     def makeWire(self):
         self.wire = packHex(self.err, 4)
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        err = struct.unpack(">I", data[9:])[0]
-        return Rst_Stream(streamID, err=err, flags=flags, wire=data)
+    def getFrame(info, data):
+        err = struct.unpack(">I", data)[0]
+        return Rst_Stream(info.streamID, err=err, info=info, wire=data)
 
     def recvEval(self, conn):
         if self.length != 4:
@@ -274,15 +280,16 @@ class Rst_Stream(Http2Header):
 
 class Settings(Http2Header):
     def __init__(self, settingID=SETTINGS.NO, value=0, **kwargs):
-        streamID = kwargs.get("streamID", 0)
-        flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs.get("wire", "")
-        super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(wire[9:]))
         self.settingID = settingID
         self.value = value
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Settings, self).__init__(info=info)
+        else:
+            streamID = kwargs.get("streamID", 0)
+            flags = kwargs.get("flags", FLAG.NO)
+            super(Settings, self).__init__(TYPE.SETTINGS, flags, streamID, len(self.wire))
 
     def makeWire(self):
         if self.flags & FLAG.ACK == FLAG.ACK:
@@ -291,9 +298,9 @@ class Settings(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        settingID, value = struct.unpack(">HI", data[9:15])
-        return Settings(settingID, value, flags=flags, streamID=streamID, wire=data)
+    def getFrame(info, data):
+        settingID, value = struct.unpack(">HI", data)
+        return Settings(settingID, value, info=info, wire=data)
 
     def recvEval(self, conn):
         if self.streamID != 0:
@@ -343,18 +350,19 @@ class Settings(Http2Header):
 
 class Push_Promise(Http2Header):
     def __init__(self, headers, streamID, promisedID, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
-        self.padLen = kwargs.get("padLen", 0)
-        wire = kwargs.get("wire", "")
-        if self.padLen:
-            flags |= FLAG.PADDING
-        super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(wire[9:]))
         self.promisedID = promisedID
         self.headers = headers
-        if wire:
-            self.headerFlagment = kwargs.get("flagment", "")
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.padLen = kwargs.get("padLen", 0)
+        self.headerFlagment = kwargs.get("flagment", "")
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Push_Promise, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            if self.padLen:
+                flags |= FLAG.PADDING
+            super(Push_Promise, self).__init__(TYPE.PUSH_PROMISE, flags, streamID, len(self.wire))
 
     def makeWire(self):
         self.wire = ""
@@ -367,17 +375,16 @@ class Push_Promise(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        targetData = data[9:]
+    def getFrame(info, data):
         index = 0
         padLen = 0
-        if flags & FLAG.PADDED == FLAG.PADDED:
-            padLen = struct.unpack(">B", targetData[0])[0]
+        if info.flags & FLAG.PADDED == FLAG.PADDED:
+            padLen = struct.unpack(">B", data[0])[0]
             index += 1
-        promisedID = struct.unpack(">I", targetData[index:index+4])[0] & 0x7fffffff
-        headerFlagment = targetData[index+4: -padLen if padLen else len(targetData)]
+        promisedID = struct.unpack(">I", data[index:index+4])[0] & 0x7fffffff
+        headerFlagment = data[index+4: -padLen if padLen else len(data)]
 
-        return Push_Promise([], streamID, promisedID, flags=flags, 
+        return Push_Promise([], info.streamID, promisedID, info=info, 
                             flagment=headerFlagment, padLen=padLen, wire=data)
 
     def recvEval(self, conn):
@@ -404,22 +411,23 @@ class Push_Promise(Http2Header):
 
 class Ping(Http2Header):
     def __init__(self, data = "", **kwargs):
-        wire = kwargs.get("wire", "")
-        flags = kwargs.get("flags", FLAG.NO)
-        sID = kwargs.get("streamID", 0)
+        self.wire = kwargs.get("wire", "")
         self.data = data
-        super(Ping, self).__init__(TYPE.PING, flags, sID, len(wire[9:]))
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        info = kwargs.get("info", None)
+        if info:
+            super(Ping, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            sID = kwargs.get("streamID", 0)
+            super(Ping, self).__init__(TYPE.PING, flags, sID, len(self.wire))
 
     def makeWire(self):
         self.wire = packHex(self.data, 8)
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        return Ping(flags = flags, data = data[9:17], streamID = streamID, wire = data)
+    def getFrame(info, data):
+        return Ping(data = data[9:17], info=info, wire = data)
 
     def recvEval(self, conn):
         if self.length != 8:
@@ -437,16 +445,17 @@ class Ping(Http2Header):
 
 class Goaway(Http2Header):
     def __init__(self, lastID, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
-        streamID = kwargs.get("streamID", 0)
-        wire = kwargs.get("wire", "")
-        super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(wire[9:]))
         self.lastID = lastID
         self.err = kwargs.get("err", ERR_CODE.NO_ERROR)
         self.debugString = kwargs.get("debugString", "")
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Goaway, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            streamID = kwargs.get("streamID", 0)
+            super(Goaway, self).__init__(TYPE.GOAWAY, flags, streamID, len(self.wire))
 
     def makeWire(self):
         self.wire = packHex(self.lastID, 4)
@@ -455,12 +464,12 @@ class Goaway(Http2Header):
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        lastID, err = struct.unpack(">2I", data[9:17])
+    def getFrame(info, data):
+        lastID, err = struct.unpack(">2I", data[:8])
         R = lastID >> 31
         lastID &= 0x7fffffff
-        debugString = data[17:]
-        return Goaway(lastID, err=err, debugString=debugString, flags=flags, streamID=streamID, wire=data)
+        debugString = data[8:]
+        return Goaway(lastID, err=err, debugString=debugString, info=info, wire=data)
 
     def recvEval(self, conn):
         if self.streamID != 0:
@@ -477,22 +486,23 @@ class Goaway(Http2Header):
 
 class Window_Update(Http2Header):
     def __init__(self, streamID, windowSizeIncrement, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs.get("wire", "")
-        super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(wire[9:]))
         self.windowSizeIncrement = windowSizeIncrement & 0x7fffffff
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Window_Update, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            super(Window_Update, self).__init__(TYPE.WINDOW_UPDATE, flags, streamID, len(self.wire))
 
     def makeWire(self):
         self.wire = packHex(self.windowSizeIncrement, 4)
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        windowSizeIncrement = struct.unpack(">I", data[9:13])[0] & 0x7fffffff
-        return Window_Update(streamID, windowSizeIncrement, flags=flags, wire=data)
+    def getFrame(info, data):
+        windowSizeIncrement = struct.unpack(">I", data)[0] & 0x7fffffff
+        return Window_Update(info.streamID, windowSizeIncrement, info=info, wire=data)
 
     def recvEval(self, conn):
         if self.length != 4:
@@ -517,22 +527,23 @@ class Window_Update(Http2Header):
 
 class Continuation(Http2Header):
     def __init__(self, streamID, **kwargs):
-        flags = kwargs.get("flags", FLAG.NO)
-        wire = kwargs.get("wire", "")
-        super(Continuation, self).__init__(TYPE.CONTINUATION, flags, streamID, len(wire[9:]))
         self.headerFragment = kwargs.get("fragment", "")
-        if wire:
-            self.wire = wire[9:]
-            self.headerWire = wire[:9]
+        self.wire = kwargs.get("wire", "")
+        info = kwargs.get("info", None)
+        if info:
+            super(Continuation, self).__init__(info=info)
+        else:
+            flags = kwargs.get("flags", FLAG.NO)
+            super(Continuation, self).__init__(TYPE.CONTINUATION, flags, streamID, len(self.wire))
 
     def makeWire(self):
         self.wire = self.headerFragment
         self._makeHeaderWire()
 
     @staticmethod
-    def getFrame(flags, streamID, data):
-        headerFragment = data[9:] #dangerous?
-        return Continuation(streamID, flags=flags, fragment=headerFragment, wire=data)
+    def getFrame(info, data):
+        headerFragment = data #dangerous?
+        return Continuation(info.streamID, info=info, fragment=headerFragment, wire=data)
 
     def recvEval(self, conn):
         if self.streamID == 0:
