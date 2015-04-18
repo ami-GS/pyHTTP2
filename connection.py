@@ -92,18 +92,20 @@ class Connection(object):
                 if not stream:
                     self.addStream(info.streamID)
                     stream = self.streams[info.streamID]
-                if (stream.getState() == STATE.CLOSED and
-                    info.type != TYPE.PRIORITY and
-                    info.type != TYPE.RST_STREAM):
-                    self.sendFrame(Rst_Stream(info.streamID, err=ERR_CODE.STREAM_CLOSED))
+
                 frameFunc = getFrameFunc(info.type)
                 frame = frameFunc(info, self._recv(info.length))
                 if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                     frame.headers = HPACK.decode(
                         stream.headerFlagment+frame.headerFlagment, self.table)
                 print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
+
                 if stream.continuing and info.type != TYPE.CONTINUATION:
                     self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
+                if (stream.getState() == STATE.CLOSED and
+                    info.type != TYPE.PRIORITY and
+                    info.type != TYPE.RST_STREAM):
+                    self.sendFrame(Rst_Stream(info.streamID, err=ERR_CODE.STREAM_CLOSED))
                 frame.recvEval(self)
             else:
                 self._recv(info.length)
