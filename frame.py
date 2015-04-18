@@ -427,7 +427,7 @@ class Ping(Http2Header):
 
     @staticmethod
     def getFrame(info, data):
-        return Ping(data = data[9:17], info=info, wire = data)
+        return Ping(data = data, info=info, wire = data)
 
     def recvEval(self, conn):
         if self.length != 8:
