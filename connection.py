@@ -101,7 +101,6 @@ class Connection(object):
                 if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                     frame.headers = HPACK.decode(
                         stream.headerFlagment+frame.headerFlagment, self.table)
-                    stream.initFlagment()
                 print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
                 if stream.continuing and info.type != TYPE.CONTINUATION:
                     self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
