@@ -177,7 +177,8 @@ class Headers(Http2Header):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            conn.sendFrame(Data("return Data!", self.streamID, flags=FLAG.END_STREAM))
+            with open(DOCUMENT_ROOT+"index.html") as f:
+                conn.sendFrame(Data("".join(f.readlines()), self.streamID, flags=FLAG.END_STREAM))
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:

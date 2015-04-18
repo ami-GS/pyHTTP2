@@ -7,6 +7,8 @@ FRAME_HEADER_SIZE = 9
 
 CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
+DOCUMENT_ROOT = "content/"
+
 recvC = soac.Changer()
 recvC.red().underline()
 sendC = soac.Changer()
