@@ -172,18 +172,48 @@ class Headers(Http2Header):
         state = conn.getStreamState(self.streamID)
         if state == STATE.RESERVED_R:
             conn.setStreamState(self.streamID, STATE.HCLOSED_L)
+            if not self.headers:
+                # not good
+                return
         else:
             conn.setStreamState(self.streamID, STATE.OPEN)
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            # TODO: self.headers should be dictionary for easy use
             with open(DOCUMENT_ROOT+"index.html") as f:
-                conn.sendFrame(Data("".join(f.readlines()), self.streamID, flags=FLAG.END_STREAM))
+                lines = f.readlines()
+            links = self.getSrcLinks(lines)
+            for link in links:
+                conn.upperStreamID += 2
+                conn.addStream(conn.upperStreamID, STATE.RESERVED_L)
+                conn.sendFrame(
+                    Push_Promise([[":method", "GET"], [":scheme", "http"],
+                                  [":authority", "127.0.0.1"], [":path", link]],
+                                 self.streamID, conn.upperStreamID, flags=FLAG.END_HEADERS)
+                )
+                conn.sendFrame(Headers([], conn.upperStreamID, flags=FLAG.END_HEADERS))
+                with open(DOCUMENT_ROOT+link) as f:
+                    contents = f.readlines()
+                conn.sendFrame(Data("".join(contents), conn.upperStreamID, flags=FLAG.END_STREAM))
+            conn.sendFrame(Data("".join(lines), self.streamID, flags=FLAG.END_STREAM))
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
         conn.lastStreamID = self.streamID
+
+    def getSrcLinks(self, lines):
+        links = []
+        for line in lines:
+            if "src" in line or ("href" in line and "text/css" in line):
+                if "src" in line:
+                    srcAfter = line.split("src=")[1]
+                    links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
+                elif "href" in line:
+                    srcAfter = line.split("href=")[1]
+                    links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
+        return links
 
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
@@ -396,7 +426,8 @@ class Push_Promise(Http2Header):
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         conn.addStream(self.promisedID, STATE.RESERVED_R)
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            #send data
+            # TODO: adjust a case of non-END_HEADERS is sent
+            conn.addStream(self.promisedID, STATE.RESERVED_R)
             conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
