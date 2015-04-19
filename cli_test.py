@@ -16,10 +16,6 @@ def access(host, port):
                            [":authority", "127.0.0.1"], [":path", "/"]],
                           1, flags=FLAG.END_HEADERS))
     raw_input("next")
-    con.sendFrame(Push_Promise([[":method", "GET"], [":scheme", "http"],
-                                [":authority", "127.0.0.1"], [":path", "/"]],
-                               1, 3, flags=FLAG.END_HEADERS))
-    raw_input("next")
     con.sendFrame(Ping("HELLO!"))
     raw_input("next")
     con.sendFrame(Window_Update(0, 10))
