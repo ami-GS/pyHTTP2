@@ -35,8 +35,6 @@ class Client(Connection):
     def __init__(self, sock, addr, enable_tls, debug):
         super(Client, self).__init__(sock, addr, enable_tls, debug)
         self.expire = 1000
-        self.lastId = 2
-        self.addStream(self.lastId)
 
     def worker(self):
         while self.validateData():
