@@ -347,8 +347,8 @@ class Settings(Http2Header):
             if self.settingID == SETTINGS.HEADER_TABLE_SIZE:
                 conn.setHeaderTableSize(self.value)
             elif self.settingID == SETTINGS.ENABLE_PUSH:
-                if self.value == 1 or value == 0:
-                    conn.enablePush = value
+                if self.value == 1 or self.value == 0:
+                    conn.enablePush = self.value
                 else:
                     conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
             elif self.settingID == SETTINGS.MAX_CONCURRENT_STREAMS:
