@@ -35,11 +35,10 @@ class Stream():
 
     def setParentStream(self, E, pStream):
         if E:
-            for cStream in stream.dependencyTree["children"]:
+            for cStream in pStream.dependencyTree["children"]:
                 cStream.setParentStream(0, self)
-                self.setChildStream(cStream)
             pStream.dependencyTree["children"] = []
-        self.dependencyTree["parent"] = pstream
+        self.dependencyTree["parent"] = pStream
         pStream.setChildStream(self)
 
     def setChildStream(self, cStream):
