@@ -19,3 +19,15 @@ def convert2dict(headers):
     for header in headers:
         dist[header.keys()[0]] = header.values()[0]
     return dist
+
+def getSrcLinks(lines):
+    links = []
+    for line in lines:
+        if "src" in line or ("href" in line and "text/css" in line):
+            if "src" in line:
+                srcAfter = line.split("src=")[1]
+                links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
+            elif "href" in line:
+                srcAfter = line.split("href=")[1]
+                links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
+    return links

@@ -203,18 +203,6 @@ class Headers(Http2Header):
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
         conn.lastStreamID = self.streamID
 
-    def getSrcLinks(self, lines):
-        links = []
-        for line in lines:
-            if "src" in line or ("href" in line and "text/css" in line):
-                if "src" in line:
-                    srcAfter = line.split("src=")[1]
-                    links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
-                elif "href" in line:
-                    srcAfter = line.split("href=")[1]
-                    links.append(srcAfter[1:srcAfter[1:].find(srcAfter[0])+1])
-        return links
-
     def sendEval(self, conn):
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
         state = conn.getStreamState(self.streamID)
