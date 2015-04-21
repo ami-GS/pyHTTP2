@@ -12,3 +12,10 @@ def packHex(val, l):
 
 def upackHex(val):
     return int(hexlify(val), 16)
+
+def convert2dict(headers):
+    # TODO: temporaly use
+    dist = {}
+    for header in headers:
+        dist[header.keys()[0]] = header.values()[0]
+    return dist

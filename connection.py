@@ -97,8 +97,8 @@ class Connection(object):
                 frameFunc = getFrameFunc(info.type)
                 frame = frameFunc(info, self._recv(info.length))
                 if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-                    frame.headers = HPACK.decode(
-                        stream.headerFlagment+frame.headerFlagment, self.table)
+                    frame.headers = convert2dict(HPACK.decode(
+                        stream.headerFlagment+frame.headerFlagment, self.table))
                 print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
 
                 if stream.continuing and info.type != TYPE.CONTINUATION:
