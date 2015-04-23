@@ -55,3 +55,7 @@ class Stream():
                 self.setState(STATE.HCLOSED_L)
             elif self.state == STATE.HCLOSED_R:
                 self.setState(STATE.CLOSED)
+
+    def string(self):
+        return "%s: streamID=%d, state=%s, rest window=%d" % \
+            (streamC.apply("Stream"), self.ID, STATE.string(self.state), self.windowSize)
