@@ -9,7 +9,7 @@ def access(host, port):
     con = Client((host, port), False, True)
     con.notifyHTTP2()
     time.sleep(0.2)
-    con.sendFrame(Settings())
+    con.sendFrame(Settings(SETTINGS.ENABLE_PUSH, 1))
     time.sleep(0.2)
     raw_input("next")
     con.sendFrame(Headers([[":method", "GET"], [":scheme", "http"],
