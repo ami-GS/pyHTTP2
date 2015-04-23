@@ -58,7 +58,7 @@ class Connection(object):
         stream = self.streams.get(frame.streamID, None)
         stream.sendEval(frame.flags)
         frame.makeWire()
-        print "%s\n\t%s" % (sendC.apply("SEND"), frame.string())
+        print "%s\n\t%s\n\t%s" % (sendC.apply("SEND"), stream.string(), frame.string())
         self._send(frame.getWire())
 
     def setStreamState(self, ID, state):
@@ -94,7 +94,7 @@ class Connection(object):
                 if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
                     frame.headers = convert2dict(HPACK.decode(
                         stream.headerFlagment+frame.headerFlagment, self.table))
-                print "%s\n\t%s" % (recvC.apply("RECV"), frame.string())
+                print "%s\n\t%s\n\t%s" % (recvC.apply("RECV"), stream.string(), frame.string())
 
                 if stream.continuing and info.type != TYPE.CONTINUATION:
                     self.sendFrame(Goaway(self.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))

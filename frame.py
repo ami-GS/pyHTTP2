@@ -111,8 +111,8 @@ class Data(Http2Header):
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def string(self):
-        return "%s\tdata=%s, padding length=%s\n" % \
-            (super(Data, self).string(), self.data, self.padLen)
+        return "%s\tpadding length=%s, data=\n%s\n" % \
+            (super(Data, self).string(), self.padLen, dataC.apply(self.data))
 
 class Headers(Http2Header):
     def __init__(self, headers, streamID, **kwargs):
@@ -225,7 +225,7 @@ class Headers(Http2Header):
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
     def string(self):
-        return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d" % \
+        return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d\n" % \
             (super(Headers, self).string(), "".join("".join(json.dumps(self.headers).split("\'")).split("\"")), self.padLen, self.E, self.streamDependency)
 
 
@@ -303,7 +303,7 @@ class Rst_Stream(Http2Header):
         conn.setStreamState(self.streamID, STATE.CLOSED)
 
     def string(self):
-        return "%s\terror=%s" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.err))
+        return "%s\terror=%s\n" % (super(Rst_Stream, self).string(), ERR_CODE.string(self.err))
 
 
 class Settings(Http2Header):
@@ -372,7 +372,7 @@ class Settings(Http2Header):
         conn.peerSettingACK = False
 
     def string(self):
-        return "%s\tsetting=%s, value=%d" % \
+        return "%s\tsetting=%s, value=%d\n" % \
             (super(Settings, self).string(), SETTINGS.string(self.settingID), self.value)
 
 
@@ -435,7 +435,7 @@ class Push_Promise(Http2Header):
             conn.setStreamState(self.streamID, STATE.RESERVED_L)
 
     def string(self):
-        return "%s\tpromisedID=%d, padding length=%d, headers=%s" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
+        return "%s\tpromisedID=%d, padding length=%d, headers=%s\n" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
 
 
 class Ping(Http2Header):
@@ -510,7 +510,7 @@ class Goaway(Http2Header):
         conn.is_goaway = True
 
     def string(self):
-        return "%s\tlast streamID=%d, error=%s, debug string=%s" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.err), self.debugString)
+        return "%s\tlast streamID=%d, error=%s, debug string=%s\n" % (super(Goaway, self).string(), self.lastID, ERR_CODE.string(self.err), self.debugString)
 
 
 class Window_Update(Http2Header):
@@ -551,7 +551,7 @@ class Window_Update(Http2Header):
         conn.recoverWindow(self.streamID, self.windowSizeIncrement)
 
     def string(self):
-        return "%s\twindow size increment=%s" % (super(Window_Update, self).string(), self.windowSizeIncrement)
+        return "%s\twindow size increment=%s\n" % (super(Window_Update, self).string(), self.windowSizeIncrement)
 
 
 class Continuation(Http2Header):
@@ -587,4 +587,4 @@ class Continuation(Http2Header):
         pass
 
     def string(self):
-        return "%s" % (super(Continuation, self).string())
+        return "%s\n" % (super(Continuation, self).string())

@@ -15,6 +15,10 @@ sendC = soac.Changer()
 sendC.cyan().underline()
 frameC = soac.Changer()
 frameC.green()
+streamC = soac.Changer()
+streamC.yellow()
+dataC = soac.Changer()
+dataC.magenda()
 
 
 class TYPE():
