@@ -55,13 +55,8 @@ class Connection(object):
 
     def sendFrame(self, frame):
         frame.sendEval(self) #TODO: makeWire and send if this returns true
-        if frame.flags&FLAG.END_STREAM == FLAG.END_STREAM:
-            stream = self.streams.get(frame.streamID, None)
-            state = stream.getState()
-            if state == STATE.OPEN:
-                stream.setState(STATE.HCLOSED_L)
-            elif state == STATE.HCLOSED_R:
-                stream.setState(STATE.CLOSED)
+        stream = self.streams.get(frame.streamID, None)
+        stream.sendEval(frame.flags)
         frame.makeWire()
         print "%s\n\t%s" % (sendC.apply("SEND"), frame.string())
         self._send(frame.getWire())

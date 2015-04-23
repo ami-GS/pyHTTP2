@@ -1,3 +1,5 @@
+from settings import *
+
 class Stream():
     def __init__(self, streamID, windowSize, state, weight=16):
         self.ID = streamID
@@ -46,3 +48,10 @@ class Stream():
 
     def setWeight(self, weight):
         self.weight = weight
+
+    def sendEval(self, flags):
+        if flags&FLAG.END_STREAM == FLAG.END_STREAM:
+            if self.state == STATE.OPEN:
+                self.setState(STATE.HCLOSED_L)
+            elif self.state == STATE.HCLOSED_R:
+                self.setState(STATE.CLOSED)
