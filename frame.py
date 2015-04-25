@@ -185,10 +185,10 @@ class Headers(Http2Header):
             if self.headers.get(":method", "") == "GET":
                 path = self.headers.get(":path", DOCUMENT_ROOT)
                 try:
-                    with open(path) as f:
+                    with open(DOCUMENT_ROOT+path) as f:
                         lines = f.readlines()
                 except:
-                    with open(DOCUMENT_ROOT+"index.html") as f:
+                    with open(DOCUMENT_ROOT+"/index.html") as f:
                         lines = f.readlines()
                 if conn.enablePush:
                     links = getSrcLinks(lines)
@@ -199,10 +199,9 @@ class Headers(Http2Header):
                             Push_Promise([[":method", "GET"], [":scheme", "http"],
                                           [":authority", self.headers.get(":authority")],
                                           [":path", link]],
-                                         self.streamID, conn.upperStreamID, flags=FLAG.END_HEADERS)
-                        )
+                                         self.streamID, conn.upperStreamID, flags=FLAG.END_HEADERS))
                         conn.sendFrame(Headers([], conn.upperStreamID, flags=FLAG.END_HEADERS))
-                        with open(DOCUMENT_ROOT+link) as f:
+                        with open(DOCUMENT_ROOT+"/"+link) as f:
                             contents = f.readlines()
                         conn.sendFrame(Data("".join(contents), conn.upperStreamID, flags=FLAG.END_STREAM))
                 conn.sendFrame(Data("".join(lines), self.streamID, flags=FLAG.END_STREAM))
