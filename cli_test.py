@@ -12,9 +12,7 @@ def access(host, port):
     con.sendFrame(Settings(SETTINGS.ENABLE_PUSH, 1))
     time.sleep(0.2)
     raw_input("next")
-    con.sendFrame(Headers([[":method", "GET"], [":scheme", "http"],
-                           [":authority", "127.0.0.1"], [":path", "/"]],
-                          1, flags=FLAG.END_HEADERS))
+    con.GET("http://127.0.0.1/content/")
     raw_input("next")
     con.sendFrame(Ping("HELLO!"))
     raw_input("next")

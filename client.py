@@ -3,6 +3,8 @@ from threading import Thread
 import socket
 from settings import *
 import ssl
+from frame import *
+from urlparse import urlparse
 
 class Client(Connection):
     def __init__(self, addr, enable_tls = False, debug = False):
@@ -13,14 +15,21 @@ class Client(Connection):
         else:
             self.sock = socket.create_connection(addr, 5)
         super(Client, self).__init__(self.sock, addr, enable_tls, debug, True)
-        self.lastId = 1
-        self.addStream(self.lastId)
+        self.usableID = 1
         self.t = Thread(target=self.__receiver)
         self.t.setDaemon(True)
         self.t.start()
 
     def notifyHTTP2(self):
         self._send(CONNECTION_PREFACE)
+
+    def GET(self, url):
+        o = urlparse(url)
+        headers = [[":method", "GET"], [":scheme", o.scheme],
+                   [":authority", o.hostname], [":path", o.path]]
+        self.addStream(self.usableID)
+        self.sendFrame(Headers(headers, self.usableID, flags=FLAG.END_HEADERS))
+        self.usableID += 2
 
     def __receiver(self):
         try:
