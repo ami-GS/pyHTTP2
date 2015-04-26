@@ -41,6 +41,9 @@ class Connection(object):
     def _recv(self):
         pass
 
+    def PING(self, data):
+        self.sendFrame(Ping(data))
+
     def sendFrame(self, frame):
         frame.sendEval(self) #TODO: makeWire and send if this returns true
         stream = self.streams.get(frame.streamID, None)
