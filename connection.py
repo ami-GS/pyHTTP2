@@ -24,7 +24,6 @@ class Connection(object):
         self.preface = is_client
         self.is_goaway = False
         # temporaly using
-        self.wireLenLimit = 24
         self.debug = debug
 
     def setSocket(self, sock, enable_tls):
@@ -41,17 +40,6 @@ class Connection(object):
 
     def _recv(self):
         pass
-
-    def send(self, frameType, flag = FLAG.NO, streamId = 0, **kwargs):
-        frame = self.streams[streamId].makeFrame(frameType, flag, **kwargs)
-        self._send(frame)
-        # here?
-        while len(self.streams[streamId].getWire()):
-            if len(self.streams[streamId].getWire()) > self.wireLenLimit:
-                frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.NO)
-            else:
-                frame = self.streams[streamId].makeFrame(TYPE.CONTINUATION, FLAG.END_HEADERS)
-            self._send(frame)
 
     def sendFrame(self, frame):
         frame.sendEval(self) #TODO: makeWire and send if this returns true
