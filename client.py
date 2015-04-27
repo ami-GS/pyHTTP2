@@ -15,7 +15,7 @@ class Client(Connection):
         else:
             self.sock = socket.create_connection(addr, 5)
         super(Client, self).__init__(self.sock, addr, enable_tls, debug, True)
-        self.usableID = 1
+        self.nextStreamID = 1
         self.t = Thread(target=self.__receiver)
         self.t.setDaemon(True)
         self.t.start()
@@ -27,9 +27,9 @@ class Client(Connection):
         o = urlparse(url)
         headers = [[":method", "GET"], [":scheme", o.scheme],
                    [":authority", o.hostname], [":path", o.path]]
-        self.addStream(self.usableID)
-        self.sendFrame(Headers(headers, self.usableID, flags=FLAG.END_HEADERS))
-        self.usableID += 2
+        self.addStream(self.nextStreamID)
+        self.sendFrame(Headers(headers, self.nextStreamID, flags=FLAG.END_HEADERS))
+        self.nextStreamID += 2
 
     def __receiver(self):
         try:

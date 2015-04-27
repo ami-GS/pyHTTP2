@@ -18,8 +18,7 @@ class Connection(object):
         self.maxHeaderListSize = SETTINGS.INIT_VALUE["header_list_size"]
         self.initialWindowSize = SETTINGS.INIT_VALUE["window_size"]
         self.peerSettingACK = False
-        self.upperStreamID = 0
-        self.lastStreamID = 0
+        self.nextStreamID = 0
         self.addStream(0)
         self.preface = is_client
         self.is_goaway = False

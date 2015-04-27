@@ -34,6 +34,7 @@ class Server():
 class Client(Connection):
     def __init__(self, sock, addr, enable_tls, debug):
         super(Client, self).__init__(sock, addr, enable_tls, debug)
+        self.nextStreamID = 2
         self.expire = 1000
 
     def worker(self):
