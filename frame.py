@@ -208,7 +208,7 @@ class Headers(Http2Header):
 
     def sendEval(self, conn):
         conn.streams[self.streamID].headers = self.headers
-        self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
+        self.headerFlagment = HPACK.encode(dict2list(self.headers), False, False, False, conn.table)
         state = conn.getStreamState(self.streamID)
         #TODO:this should be implemented in connection
         if self.flags&FLAG.PRIORITY == FLAG.PRIORITY:
@@ -425,7 +425,7 @@ class Push_Promise(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
     def sendEval(self, conn):
-        self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
+        self.headerFlagment = HPACK.encode(dict2list(self.headers), False, False, False, conn.table)
         if conn.getStreamState(self.streamID) == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.RESERVED_L)
 

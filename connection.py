@@ -47,9 +47,7 @@ class Connection(object):
         headers = self.streams[ID].headers
         headers[":path"] = link
         self.addStream(self.nextStreamID, STATE.RESERVED_L)
-        self.sendFrame(Push_Promise([[":method", "GET"], [":scheme", headers[":scheme"]],
-                                     [":authority", headers[":authority"]], [":path", link]],
-                                    ID, self.nextStreamID, flags=FLAG.END_HEADERS))
+        self.sendFrame(Push_Promise(headers, ID, self.nextStreamID, flags=FLAG.END_HEADERS))
         self.sendFrame(Headers([], self.nextStreamID, flags=FLAG.END_HEADERS))
         self.streams[self.nextStreamID].headers = headers
         self.sendFrame(Data("", self.nextStreamID, flags=FLAG.END_STREAM))
@@ -94,7 +92,7 @@ class Connection(object):
                 frameFunc = getFrameFunc(info.type)
                 frame = frameFunc(info, self._recv(info.length))
                 if info.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-                    frame.headers = convert2dict(HPACK.decode(
+                    frame.headers = list2dict(HPACK.decode(
                         stream.headerFlagment+frame.headerFlagment, self.table))
                 print "%s\n\t%s\n\t%s" % (recvC.apply("RECV"), stream.string(), frame.string())
 

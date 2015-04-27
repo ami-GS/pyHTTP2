@@ -25,8 +25,8 @@ class Client(Connection):
 
     def GET(self, url):
         o = urlparse(url)
-        headers = [[":method", "GET"], [":scheme", o.scheme],
-                   [":authority", o.hostname], [":path", o.path]]
+        headers = {":method":"GET", ":scheme":o.scheme,
+                   ":authority": o.hostname, ":path": o.path}
         self.addStream(self.nextStreamID)
         self.sendFrame(Headers(headers, self.nextStreamID, flags=FLAG.END_HEADERS))
         self.nextStreamID += 2
