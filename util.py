@@ -13,11 +13,20 @@ def packHex(val, l):
 def upackHex(val):
     return int(hexlify(val), 16)
 
-def convert2dict(headers):
+def list2dict(headers):
     # TODO: temporaly use
+    # from [[":method", "GET"] ...] to {":method":"GET" ...}
     dist = {}
     for header in headers:
         dist[header.keys()[0]] = header.values()[0]
+    return dist
+
+def dict2list(headers):
+    # TODO: temporaly use
+    # from {":method":"GET"...} to [[":method", "GET"] ...]
+    dist = []
+    for k in headers:
+        dist.append([k, headers[k]])
     return dist
 
 def getSrcLinks(lines):
