@@ -108,6 +108,21 @@ class Data(Http2Header):
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def sendEval(self, conn):
+        path = conn.streams[self.streamID].headers.get(":path", DOCUMENT_ROOT)
+        if path == "/" or path == DOCUMENT_ROOT:
+            with open(DOCUMENT_ROOT+"/index.html") as f:
+                lines = f.readlines()
+            if conn.enablePush:
+                links = getSrcLinks(lines)
+                for link in links:
+                    conn.pushContent(self.streamID, link)
+        else:
+            try:
+                with open(DOCUMENT_ROOT+"/"+path) as f:
+                    lines = f.readlines()
+            except Exception as e:
+                lines = ["No such file or directory"]
+        self.data = "".join(lines)
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def string(self):
@@ -181,30 +196,10 @@ class Headers(Http2Header):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
+            conn.streams[self.streamID].headers = self.headers
             # TODO: self.headers should be dictionary for easy use
             if self.headers.get(":method", "") == "GET":
-                path = self.headers.get(":path", DOCUMENT_ROOT)
-                try:
-                    with open(DOCUMENT_ROOT+path) as f:
-                        lines = f.readlines()
-                except:
-                    with open(DOCUMENT_ROOT+"/index.html") as f:
-                        lines = f.readlines()
-                if conn.enablePush:
-                    links = getSrcLinks(lines)
-                    for link in links:
-                        conn.upperStreamID += 2
-                        conn.addStream(conn.upperStreamID, STATE.RESERVED_L)
-                        conn.sendFrame(
-                            Push_Promise([[":method", "GET"], [":scheme", "http"],
-                                          [":authority", self.headers.get(":authority")],
-                                          [":path", link]],
-                                         self.streamID, conn.upperStreamID, flags=FLAG.END_HEADERS))
-                        conn.sendFrame(Headers([], conn.upperStreamID, flags=FLAG.END_HEADERS))
-                        with open(DOCUMENT_ROOT+"/"+link) as f:
-                            contents = f.readlines()
-                        conn.sendFrame(Data("".join(contents), conn.upperStreamID, flags=FLAG.END_STREAM))
-                conn.sendFrame(Data("".join(lines), self.streamID, flags=FLAG.END_STREAM))
+                conn.sendFrame(Data("", self.streamID, flags=FLAG.END_STREAM))
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
@@ -212,6 +207,7 @@ class Headers(Http2Header):
         conn.lastStreamID = self.streamID
 
     def sendEval(self, conn):
+        conn.streams[self.streamID].headers = self.headers
         self.headerFlagment = HPACK.encode(self.headers, False, False, False, conn.table)
         state = conn.getStreamState(self.streamID)
         #TODO:this should be implemented in connection

@@ -7,6 +7,7 @@ class Stream():
         self.weight = weight
         self.initialWindowSize = windowSize
         self.windowSize = windowSize
+        self.headers = []
         self.headerFlagment = ""
         self.continuing = False
         self.dependencyTree = {"parent":None, "children":[]}
