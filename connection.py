@@ -43,6 +43,18 @@ class Connection(object):
     def PING(self, data):
         self.sendFrame(Ping(data))
 
+    def pushContent(self, ID, link):
+        headers = self.streams[ID].headers
+        headers[":path"] = link
+        self.addStream(self.nextStreamID, STATE.RESERVED_L)
+        self.sendFrame(Push_Promise([[":method", "GET"], [":scheme", headers[":scheme"]],
+                                     [":authority", headers[":authority"]], [":path", link]],
+                                    ID, self.nextStreamID, flags=FLAG.END_HEADERS))
+        self.sendFrame(Headers([], self.nextStreamID, flags=FLAG.END_HEADERS))
+        self.streams[self.nextStreamID].headers = headers
+        self.sendFrame(Data("", self.nextStreamID, flags=FLAG.END_STREAM))
+        self.nextStreamID += 2
+
     def sendFrame(self, frame):
         frame.sendEval(self) #TODO: makeWire and send if this returns true
         stream = self.streams.get(frame.streamID, None)
