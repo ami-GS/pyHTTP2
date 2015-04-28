@@ -1,4 +1,5 @@
 from binascii import hexlify
+from settings import *
 
 def packHex(val, l):
     h = ""
@@ -28,6 +29,14 @@ def dict2list(headers):
     for k in headers:
         dist.append([k, headers[k]])
     return dist
+
+def getSrc(path):
+    try:
+        with open(path) as f:
+            lines = f.readlines()
+    except Exception as e:
+        lines = ["No such file or directory"]
+    return lines
 
 def getSrcLinks(lines):
     links = []
