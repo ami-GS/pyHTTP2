@@ -7,7 +7,7 @@ class Stream():
         self.weight = weight
         self.initialWindowSize = windowSize
         self.windowSize = windowSize
-        self.headers = []
+        self.headers = {}
         self.headerFlagment = ""
         self.continuing = False
         self.dependencyTree = {"parent":None, "children":[]}
@@ -50,6 +50,9 @@ class Stream():
     def setWeight(self, weight):
         self.weight = weight
 
+    def setHeaders(self, headers):
+        self.headers = headers
+
     def sendEval(self, flags):
         if flags&FLAG.END_STREAM == FLAG.END_STREAM:
             if self.state == STATE.OPEN:
@@ -58,5 +61,5 @@ class Stream():
                 self.setState(STATE.CLOSED)
 
     def string(self):
-        return "%s: streamID=%d, state=%s, rest window=%d" % \
-            (streamC.apply("Stream"), self.ID, STATE.string(self.state), self.windowSize)
+        return "%s: streamID=%d, state=%s, rest window=%d headers=%s" % \
+            (streamC.apply("Stream"), self.ID, STATE.string(self.state), self.windowSize, self.headers)

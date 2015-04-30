@@ -28,7 +28,8 @@ class Client(Connection):
         headers = {":method":"GET", ":scheme":o.scheme,
                    ":authority": o.hostname, ":path": o.path}
         self.addStream(self.nextStreamID)
-        self.sendFrame(Headers(headers, self.nextStreamID, flags=FLAG.END_HEADERS))
+        self.setHeaders(self.nextStreamID, headers)
+        self.sendFrame(Headers(self.nextStreamID, flags=FLAG.END_HEADERS))
         self.nextStreamID += 2
 
     def __receiver(self):

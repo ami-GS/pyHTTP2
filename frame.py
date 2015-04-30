@@ -130,8 +130,7 @@ class Data(Http2Header):
             (super(Data, self).string(), self.padLen, dataC.apply(self.data))
 
 class Headers(Http2Header):
-    def __init__(self, headers, streamID, **kwargs):
-        self.headers = headers
+    def __init__(self, streamID, **kwargs):
         self.padLen = kwargs.get("padLen", 0)
         self.E = kwargs.get("E", 0)
         self.streamDependency = kwargs.get("streamDependency", 0)
@@ -181,14 +180,14 @@ class Headers(Http2Header):
             index += 5
         headerFlagment = data[index: -padLen if padLen else len(data)]
 
-        return Headers([], info.streamID, info=info, flagment=headerFlagment, padLen=padLen,
+        return Headers(info.streamID, info=info, flagment=headerFlagment, padLen=padLen,
                        E=E, streamDependency=streamDependency, weight=weight, wire=data)
 
     def recvEval(self, conn):
-        state = conn.getStreamState(self.streamID)
-        if state == STATE.RESERVED_R:
+        stream = conn.streams[self.streamID]
+        if stream.state == STATE.RESERVED_R:
             conn.setStreamState(self.streamID, STATE.HCLOSED_L)
-            if not self.headers:
+            if not stream.headers:
                 # not good
                 return
         else:
@@ -196,10 +195,10 @@ class Headers(Http2Header):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            conn.streams[self.streamID].headers = self.headers
             # TODO: self.headers should be dictionary for easy use
-            if self.headers.get(":method", "") == "GET":
+            if stream.headers.get(":method", "") == "GET":
                 conn.sendFrame(Data("", self.streamID, flags=FLAG.END_STREAM))
+            conn.initFlagment(self.streamID)
         else:
             conn.appendFlagment(self.streamID, self.headerFlagment)
         if self.flags&FLAG.END_STREAM == FLAG.END_STREAM:
@@ -207,22 +206,20 @@ class Headers(Http2Header):
         conn.lastStreamID = self.streamID
 
     def sendEval(self, conn):
-        conn.streams[self.streamID].headers = self.headers
-        self.headerFlagment = HPACK.encode(dict2list(self.headers), False, False, False, conn.table)
-        state = conn.getStreamState(self.streamID)
+        stream = conn.streams[self.streamID]
+        self.headerFlagment = HPACK.encode(dict2list(stream.headers), False, False, False, conn.table)
         #TODO:this should be implemented in connection
         if self.flags&FLAG.PRIORITY == FLAG.PRIORITY:
             conn.streams[self.streamID].weight = self.weight
             conn.streams[self.streamID].setParentStream(self.E, conn.streams[self.streamDependency])
-        if state == STATE.IDLE:
+        if stream.state == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.OPEN)
-        elif state == STATE.RESERVED_L:
+        elif stream.state == STATE.RESERVED_L:
             conn.setStreamState(self.streamID, STATE.HCLOSED_R)
 
     def string(self):
-        return "%s\theaders=%s, padding length=%s, E=%d, stream dependency=%d\n" % \
-            (super(Headers, self).string(), "".join("".join(json.dumps(self.headers).split("\'")).split("\"")), self.padLen, self.E, self.streamDependency)
-
+        return "%s\tpadding length=%s, E=%d, stream dependency=%d\n" % \
+            (super(Headers, self).string(), self.padLen, self.E, self.streamDependency)
 
 class Priority(Http2Header):
     def __init__(self, streamID, E, streamDependency, weight, **kwargs):
@@ -372,9 +369,8 @@ class Settings(Http2Header):
 
 
 class Push_Promise(Http2Header):
-    def __init__(self, headers, streamID, promisedID, **kwargs):
+    def __init__(self, streamID, promisedID, **kwargs):
         self.promisedID = promisedID
-        self.headers = headers
         self.padLen = kwargs.get("padLen", 0)
         self.headerFlagment = kwargs.get("flagment", "")
         self.wire = kwargs.get("wire", "")
@@ -407,7 +403,7 @@ class Push_Promise(Http2Header):
         promisedID = struct.unpack(">I", data[index:index+4])[0] & 0x7fffffff
         headerFlagment = data[index+4: -padLen if padLen else len(data)]
 
-        return Push_Promise([], info.streamID, promisedID, info=info, 
+        return Push_Promise(info.streamID, promisedID, info=info,
                             flagment=headerFlagment, padLen=padLen, wire=data)
 
     def recvEval(self, conn):
@@ -425,12 +421,12 @@ class Push_Promise(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
     def sendEval(self, conn):
-        self.headerFlagment = HPACK.encode(dict2list(self.headers), False, False, False, conn.table)
+        self.headerFlagment = HPACK.encode(dict2list(conn.streams[self.streamID].headers), False, False, False, conn.table)
         if conn.getStreamState(self.streamID) == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.RESERVED_L)
 
     def string(self):
-        return "%s\tpromisedID=%d, padding length=%d, headers=%s\n" % (super(Push_Promise, self).string(), self.promisedID, self.padLen,  "".join("".join(json.dumps(self.headers).split("\'")).split("\"")))
+        return "%s\tpromisedID=%d, padding length=%d\n" % (super(Push_Promise, self).string(), self.promisedID, self.padLen)
 
 
 class Ping(Http2Header):
