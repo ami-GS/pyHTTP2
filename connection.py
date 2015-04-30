@@ -67,6 +67,9 @@ class Connection(object):
     def setHeaders(self, ID, headers):
         self.streams[ID].setHeaders(headers)
 
+    def getStream(self, ID):
+        return self.streams[ID]
+
     def getStreamState(self, ID):
         return self.streams[ID].getState()
 

@@ -108,7 +108,7 @@ class Data(Http2Header):
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def sendEval(self, conn):
-        path = conn.streams[self.streamID].headers.get(":path", DOCUMENT_ROOT)
+        path = conn.getStream(self.streamID).headers.get(":path", DOCUMENT_ROOT)
         if path == "/" or path == DOCUMENT_ROOT:
             with open(DOCUMENT_ROOT+"/index.html") as f:
                 lines = f.readlines()
@@ -184,7 +184,7 @@ class Headers(Http2Header):
                        E=E, streamDependency=streamDependency, weight=weight, wire=data)
 
     def recvEval(self, conn):
-        stream = conn.streams[self.streamID]
+        stream = conn.getStream(self.streamID)
         if stream.state == STATE.RESERVED_R:
             conn.setStreamState(self.streamID, STATE.HCLOSED_L)
             if not stream.headers:
@@ -206,12 +206,12 @@ class Headers(Http2Header):
         conn.lastStreamID = self.streamID
 
     def sendEval(self, conn):
-        stream = conn.streams[self.streamID]
+        stream = conn.getStream(self.streamID)
         self.headerFlagment = HPACK.encode(dict2list(stream.headers), False, False, False, conn.table)
         #TODO:this should be implemented in connection
         if self.flags&FLAG.PRIORITY == FLAG.PRIORITY:
-            conn.streams[self.streamID].weight = self.weight
-            conn.streams[self.streamID].setParentStream(self.E, conn.streams[self.streamDependency])
+            stream.weight = self.weight
+            stream.setParentStream(self.E, conn.getStream(self.streamDependency))
         if stream.state == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.OPEN)
         elif stream.state == STATE.RESERVED_L:
@@ -421,7 +421,7 @@ class Push_Promise(Http2Header):
             conn.appendFlagment(self.streamID, self.headerFlagment)
 
     def sendEval(self, conn):
-        self.headerFlagment = HPACK.encode(dict2list(conn.streams[self.streamID].headers), False, False, False, conn.table)
+        self.headerFlagment = HPACK.encode(dict2list(conn.getStream(self.streamID).headers), False, False, False, conn.table)
         if conn.getStreamState(self.streamID) == STATE.IDLE:
             conn.setStreamState(self.streamID, STATE.RESERVED_L)
 
