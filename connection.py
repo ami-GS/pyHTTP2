@@ -44,7 +44,7 @@ class Connection(object):
         self.sendFrame(Ping(data))
 
     def pushContent(self, ID, link):
-        headers = self.streams[ID].headers
+        headers = self.getStream(ID).headers
         headers[":path"] = link
         self.addStream(self.nextStreamID, STATE.RESERVED_L)
         self.sendFrame(Push_Promise(ID, self.nextStreamID, flags=FLAG.END_HEADERS))
@@ -55,7 +55,7 @@ class Connection(object):
 
     def sendFrame(self, frame):
         frame.sendEval(self) #TODO: makeWire and send if this returns true
-        stream = self.streams.get(frame.streamID, None)
+        stream = self.getStream(frame.streamID)
         stream.sendEval(frame.flags)
         frame.makeWire()
         print "%s\n\t%s\n\t%s" % (sendC.apply("SEND"), stream.string(), frame.string())
@@ -68,7 +68,8 @@ class Connection(object):
         self.streams[ID].setHeaders(headers)
 
     def getStream(self, ID):
-        return self.streams[ID]
+        stream = self.streams.get(ID, None)
+        return stream
 
     def getStreamState(self, ID):
         return self.streams[ID].getState()
@@ -90,10 +91,10 @@ class Connection(object):
             if not self.is_goaway or self.is_goaway and (info.type == TYPE.HEADERS or
                                                          info.type == TYPE.PRIORITY or
                                                          info.type == TYPE.CONTINUATION):
-                stream = self.streams.get(info.streamID, '')
+                stream = self.getStream(info.streamID)
                 if not stream:
                     self.addStream(info.streamID)
-                    stream = self.streams[info.streamID]
+                    stream = self.getStream(info.streamID)
 
                 frameFunc = getFrameFunc(info.type)
                 frame = frameFunc(info, self._recv(info.length))
