@@ -42,6 +42,3 @@ class Client(Connection):
             pass
         else:
             pass
-
-    def recv(self):
-        return self._recv((self.maxFrameSize + FRAME_HEADER_SIZE) * 8)
