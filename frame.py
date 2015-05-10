@@ -108,8 +108,7 @@ class Data(Http2Header):
         links = getSrcLinks(self.data.split("\n"))
         for link in links:
             if stream.finRequest.get(link, "") is not "GET":
-                url = stream.headers[":scheme"]+"://"+stream.headers[":authority"]+"/"+link
-                conn.GET(url) # connection should have GET instead of client?
+                conn.GET(stream.getUrl(link)) # connection should have GET instead of client?
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def sendEval(self, conn):

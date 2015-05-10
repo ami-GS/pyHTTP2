@@ -29,6 +29,13 @@ class Stream():
     def setState(self, state):
         self.state = state
 
+    def getUrl(self, path = ""):
+        if not path:
+            path = self.headers[":path"]
+        if not path.startswith("/"):
+            path = "/" + path
+        return self.headers[":scheme"] + "://" + self.headers[":authority"] + path
+
     def initFlagment(self):
         self.headerFlagment = ""
         self.continuing = False
