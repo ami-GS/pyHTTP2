@@ -98,13 +98,18 @@ class Data(Http2Header):
     def recvEval(self, conn):
         if self.streamID == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
-        state = conn.getStreamState(self.streamID)
-        if state == STATE.CLOSED:
+        stream = conn.getStream(self.streamID)
+        if stream.state == STATE.CLOSED:
             conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.PROTOCOL_ERROR))
-        if state != STATE.OPEN and state != STATE.HCLOSED_L:
+        if stream.state != STATE.OPEN and stream.state != STATE.HCLOSED_L:
             conn.sendFrame(Rst_Stream(self.streamID, err=ERR_CODE.STREAM_CLOSED))
         if self.flags&FLAG.PADDED == FLAG.PADDED and self.padLen > (len(self.wire)-1):
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
+        links = getSrcLinks(self.data.split("\n"))
+        for link in links:
+            if stream.finRequest.get(link, "") is not "GET":
+                url = stream.headers[":scheme"]+"://"+stream.headers[":authority"]+"/"+link
+                conn.GET(url) # connection should have GET instead of client?
         conn.useWindow(self.streamID, len(self.data)*8)
 
     def sendEval(self, conn):
@@ -409,12 +414,12 @@ class Push_Promise(Http2Header):
     def recvEval(self, conn):
         if self.streamID == 0 or conn.enablePush == 0:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
-        state = conn.getStreamState(self.streamID)
-        if state != STATE.OPEN and state != STATE.HCLOSED_L:
+        stream = conn.getStream(self.streamID)
+        if stream.state != STATE.OPEN and stream.state != STATE.HCLOSED_L:
             conn.sendFrame(Goaway(conn.lastStreamID, err=ERR_CODE.PROTOCOL_ERROR))
         conn.addStream(self.promisedID, STATE.RESERVED_R)
         if self.flags&FLAG.END_HEADERS == FLAG.END_HEADERS:
-            # TODO: adjust a case of non-END_HEADERS is sent
+            stream.finRequest[stream.headers[":path"]] = "GET"
             conn.addStream(self.promisedID, STATE.RESERVED_R)
             conn.initFlagment(self.streamID)
         else:

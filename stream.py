@@ -10,6 +10,7 @@ class Stream():
         self.headers = {}
         self.headerFlagment = ""
         self.continuing = False
+        self.finRequest = {} # {"samole.css":"GET", "sample.css":"GET"}
         self.dependencyTree = {"parent":None, "children":[]}
 
     def recoverWindow(self, size):
