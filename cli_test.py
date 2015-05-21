@@ -1,9 +1,10 @@
-from settings import *
+from pyHTTP2.settings import *
+from pyHTTP2.client import Client
+from pyHTTP2.frame import *
 import sys
 import time
-from client import Client
 from threading import Thread
-from frame import *
+
 
 def access(host, port):
     con = Client((host, port), False, True)

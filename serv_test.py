@@ -1,4 +1,4 @@
-from server import Server
+from pyHTTP2.server import Server
 import sys
 
 
